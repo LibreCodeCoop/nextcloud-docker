@@ -10,7 +10,7 @@ Create a network
 docker network create reverse-proxy
 ```
 
-Edit the `docker-compose.yml` and change the environments to your necessity:
+Edit the `docker-compose.yml` and `docker-compose.proxy.yml` and change the environments to your necessity:
 | Environment |
 |-------------|
 | [`VIRTUAL_HOST`](https://github.com/nginx-proxy/nginx-proxy#usage) |

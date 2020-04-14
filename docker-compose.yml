@@ -19,7 +19,7 @@ services:
       - internal
 
   app:
-    build: ./.docker/app
+    build: .docker/app
     links:
       - db
     volumes:
@@ -29,48 +29,17 @@ services:
       - internal
 
   web:
-    image: nginx:alpine
+    container_name: web
+    build: .docker/web
     restart: always
     volumes:
       - ./volumes/nextcloud:/var/www/html:ro
-      - ./.docker/nginx/vhost.d/nextcloud.conf:/etc/nginx/nginx.conf
     environment:
-      - VIRTUAL_HOST=nc.localhost
-      - LETSENCRYPT_HOST=nc.localhost
-      - LETSENCRYPT_EMAIL=dev@lt.coop.br
-    #ports:
-    #  - 80:80
+      - VIRTUAL_HOST=mydomain.coop
+      - LETSENCRYPT_HOST=mydomain.coop
+      #- LETSENCRYPT_EMAIL=user@mydomain.coop
     depends_on:
       - app
     networks:
       - internal
       - reverse-proxy
-
-  nginx-proxy:
-    image: jwilder/nginx-proxy
-    ports:
-      - 80:80
-      - 443:443
-    volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-      - ./volumes/certs:/etc/nginx/certs:ro
-      - ./.docker/nginx/vhost.d/:/etc/nginx/vhost.d
-    networks:
-      - reverse-proxy
-
-  nginx-letsencrypt:
-    image: jrcs/letsencrypt-nginx-proxy-companion
-    container_name: nginx-letsencrypt
-    restart: unless-stopped
-    depends_on:
-      - nginx-proxy
-    networks:
-      - reverse-proxy
-    volumes:
-      - ./volumes/certs:/etc/nginx/certs:rw
-      - ./.docker/nginx/vhost.d:/etc/nginx/vhost.d
-      - ./volumes/nginx/html:/usr/share/nginx/html
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      - NGINX_PROXY_CONTAINER=nginx-proxy
-      - NGINX_DOCKER_GEN_CONTAINER=nginx-proxy

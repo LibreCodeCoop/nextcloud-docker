@@ -1,0 +1,39 @@
+version: "3.7"
+
+networks:
+  reverse-proxy:
+    external: true
+    name: reverse-proxy
+  internal:
+    driver: bridge
+
+services:
+  nginx-proxy:
+    container_name: nginx-proxy
+    image: jwilder/nginx-proxy
+    restart: unless-stopped
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - .docker/nginx-proxy/vhost.d/:/etc/nginx/vhost.d
+      - .docker/nginx-proxy/conf.d:/etc/nginx/conf.d
+      - ./volumes/nginx/html:/usr/share/nginx/html
+      - ./volumes/certs:/etc/nginx/certs:ro
+    networks:
+      - reverse-proxy
+
+  nginx-letsencrypt:
+    container_name: nginx-letsencrypt
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    restart: unless-stopped
+    networks:
+      - reverse-proxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - .docker/nginx-proxy/vhost.d/:/etc/nginx/vhost.d
+      - ./volumes/nginx/html:/usr/share/nginx/html
+      - ./volumes/certs:/etc/nginx/certs:rw
+    environment:
+      - NGINX_PROXY_CONTAINER=nginx-proxy

@@ -18,6 +18,10 @@ Edit the `docker-compose.yml` and `docker-compose.proxy.yml` and change the envi
 | [`LETSENCRYPT_EMAIL`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Let's-Encrypt-and-ACME.md#contact-address) |
 | [`DEBUG`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/wiki/Container-configuration#optional-container-environment-variables-for-custom-configuration) |
 
+## PHP custom settings
+
+If you need custom settings in PHP, change the file [`.docker/app/config/php.ini`](/.docker/app/config/php.ini).
+
 ## Run
 
 ```bash

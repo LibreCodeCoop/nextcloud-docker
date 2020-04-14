@@ -10,6 +10,14 @@ Create a network
 docker network create reverse-proxy
 ```
 
+Edit the `docker-compose.yml` and change the environments to your necessity:
+| Environment |
+|-------------|
+| [`VIRTUAL_HOST`](https://github.com/nginx-proxy/nginx-proxy#usage) |
+| [`LETSENCRYPT_HOST`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Basic-usage.md#step-3---proxyed-containers) |
+| [`LETSENCRYPT_EMAIL`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Let's-Encrypt-and-ACME.md#contact-address) |
+| [`DEBUG`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/wiki/Container-configuration#optional-container-environment-variables-for-custom-configuration) |
+
 ## Run
 
 ```bash

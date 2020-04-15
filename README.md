@@ -12,7 +12,7 @@ docker network create reverse-proxy
 
 Edit the `docker-compose.yml` and `docker-compose.proxy.yml` and change the environments to your necessity:
 | Environment | service | 
-|-------------|
+|-------------|---------|
 | [`VIRTUAL_HOST`](https://github.com/nginx-proxy/nginx-proxy#usage) | `web` |
 | [`LETSENCRYPT_HOST`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Basic-usage.md#step-3---proxyed-containers) | `web` |
 | [`LETSENCRYPT_EMAIL`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Let's-Encrypt-and-ACME.md#contact-address) | `web` |

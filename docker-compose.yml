@@ -24,6 +24,7 @@ services:
       - db
     volumes:
       - ./volumes/nextcloud:/var/www/html
+      - .docker/web/timeout.conf:/etc/nginx/conf.d/timeout.conf
     restart: always
     networks:
       - internal

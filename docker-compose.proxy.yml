@@ -20,7 +20,7 @@ services:
       - .docker/nginx-proxy/vhost.d/:/etc/nginx/vhost.d
       - .docker/nginx-proxy/conf.d:/etc/nginx/conf.d
       - ./volumes/nginx/html:/usr/share/nginx/html
-      - ./volumes/certs:/etc/nginx/certs:ro
+      - ./certs:/etc/nginx/certs:ro
     networks:
       - reverse-proxy
 
@@ -34,6 +34,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - .docker/nginx-proxy/vhost.d/:/etc/nginx/vhost.d
       - ./volumes/nginx/html:/usr/share/nginx/html
-      - ./volumes/certs:/etc/nginx/certs:rw
+      - ./certs:/etc/nginx/certs:rw
     environment:
       - NGINX_PROXY_CONTAINER=nginx-proxy

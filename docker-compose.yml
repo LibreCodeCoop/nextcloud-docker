@@ -44,3 +44,16 @@ services:
     networks:
       - internal
       - reverse-proxy
+
+  documentserver:
+    image: onlyoffice/documentserver
+    restart: always
+    environment:
+      - VIRTUAL_HOST=onlyoffice.mydomain.coop
+      - LETSENCRYPT_HOST=onlyoffice.mydomain.coop
+    volumes:
+      - ./volumes/onlyoffice/DocumentServer/logs:/var/log/onlyoffice
+      - ./volumes/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data
+    networks:
+      - internal
+      - reverse-proxy

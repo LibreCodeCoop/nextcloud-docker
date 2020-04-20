@@ -27,6 +27,6 @@ If you need custom settings in PHP, change the file [`.docker/app/config/php.ini
 ## Run
 
 ```bash
-docker-compsoe up -d
+docker-compose up -d
 docker-compose -f docker-compose.proxy.yml up -d
 ```

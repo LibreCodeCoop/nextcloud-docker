@@ -34,4 +34,23 @@ docker-compose -f docker-compose.proxy.yml up -d
 
 Change the [Dockerfile](/.docker/app/Dockerfile#L1) in line 1 and put your prefered version of NextCloud.
 
-I suggest to fork this project, change the Dockerfile and make a pull request to me for other people benefit from this change.
+> I suggest to fork this project, change the Dockerfile and make a pull request to me for other people benefit from this change.
+
+Build the images, down the containers and get up again:
+
+```bash
+docker-compose build
+docker-compose down
+docker-compose up -d
+```
+
+If you want to see the changes, run:
+```bash
+docker-compsoe logs -ft
+```
+You will see this message in the logs and other many upgrade messages:
+
+```
+app_1      | 2020-04-28T19:49:38.568623133Z Initializing nextcloud 18.0.4.2 ...
+app_1      | 2020-04-28T19:49:38.577733913Z Upgrading nextcloud from 18.0.3.0 ...
+```

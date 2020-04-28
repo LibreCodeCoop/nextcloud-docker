@@ -34,8 +34,6 @@ docker-compose -f docker-compose.proxy.yml up -d
 
 Change the [Dockerfile](/.docker/app/Dockerfile#L1) in line 1 and put your prefered version of NextCloud.
 
-> I suggest to fork this project, change the Dockerfile and make a pull request to me for other people benefit from this change.
-
 Build the images, down the containers and get up again:
 
 ```bash

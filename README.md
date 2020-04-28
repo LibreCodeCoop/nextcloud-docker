@@ -30,7 +30,7 @@ If you need custom settings in PHP, change the file [`.docker/app/config/php.ini
 docker-compose up -d
 docker-compose -f docker-compose.proxy.yml up -d
 ```
-## Upgrade to a newest version of NextCloud
+## Use a specific version of NextCloud
 
 Change the [Dockerfile](/.docker/app/Dockerfile#L1) in line 1 and put your prefered version of NextCloud.
 

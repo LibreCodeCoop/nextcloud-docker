@@ -20,6 +20,17 @@ Edit the `docker-compose.yml` and `docker-compose.proxy.yml` and change the envi
 
 > **PS**: Let's Encrypt only work in servers when the `VIRTUAL_HOST` and `LETSENCRYPT_HOST` have a valid public domain registered in a DNS server. Don't try to yse in localhost, don't work!
 
+## After setup
+
+After finish the setup, access this url: https://localhost/settings/admin/overview.
+
+If is necessary run any occ command, run like this:
+
+```bash
+docker exec -u www-data -it nextcloud_app_1 ./occ db:add-missing-indices
+docker exec -u www-data -it nextcloud_app_1 ./occ db:convert-filecache-bigint
+```
+
 ## PHP custom settings
 
 If you need custom settings in PHP, change the file [`.docker/app/config/php.ini`](/.docker/app/config/php.ini).

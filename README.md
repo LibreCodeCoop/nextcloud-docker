@@ -55,7 +55,7 @@ docker-compose up -d
 
 If you want to see the changes, run:
 ```bash
-docker-compsoe logs -ft
+docker-compose logs -ft
 ```
 You will see this message in the logs and other many upgrade messages:
 

@@ -27,8 +27,8 @@ After finish the setup, access this url: https://localhost/settings/admin/overvi
 If is necessary run any occ command, run like this:
 
 ```bash
-docker exec -u www-data -it nextcloud_app_1 ./occ db:add-missing-indices
-docker exec -u www-data -it nextcloud_app_1 ./occ db:convert-filecache-bigint
+docker-compose exec -u www-data app ./occ db:add-missing-indices
+docker-compose exec -u www-data app ./occ db:convert-filecache-bigint
 ```
 
 ## PHP custom settings

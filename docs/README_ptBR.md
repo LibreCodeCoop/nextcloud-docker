@@ -20,7 +20,15 @@ sudo usermod -aG docker $USER
 ```bash
 rm get-docker.sh
 ```
-
+## Instalando o Docker Compose
+Baixe o docker-compose
+```bash
+sudo curl -L https://github.com/docker/compose/releases/download/1.25.5/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+```
+Dê as permissões necessárias
+```bash
+sudo chmod +x /usr/local/bin/docker-compose
+```
 ## Alterações antes de rodar pela primeira vez
 
 - 1º: Altere a senha do seu banco de dados no arquivo `.env`.

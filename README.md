@@ -1,3 +1,5 @@
+# Languages avaliable
+[🇧🇷](docs/README_ptBR.md)
 # NextCloud with SSL and Docker
 
 ## Before first run

@@ -44,6 +44,15 @@ services:
     networks:
       - internal
       - reverse-proxy
+      
+  cron:
+    image: nextcloud:stable-fpm-alpine
+    restart: unless-stopped
+    volumes:
+      - ./volumes/nextcloud:/var/www/html
+    networks:
+      - internal
+    entrypoint: /cron.sh
 
   #documentserver:
   #  image: onlyoffice/documentserver

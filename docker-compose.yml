@@ -46,7 +46,7 @@ services:
       - reverse-proxy
       
   cron:
-    image: nextcloud:stable-fpm-alpine
+    build: .docker/app
     restart: unless-stopped
     volumes:
       - ./volumes/nextcloud:/var/www/html

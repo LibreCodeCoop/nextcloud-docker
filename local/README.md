@@ -6,7 +6,6 @@ Este projeto cria uma instância no Docker do NextCloud para ambientes locais co
 - em português;
 - com um banco PostgreSQL;
 - com um usuário administrador;
-- com os aplicativos Deck, Calendar e Contacts;
 - com o sistema de cron habilitado;
 
 ## Setup inicial

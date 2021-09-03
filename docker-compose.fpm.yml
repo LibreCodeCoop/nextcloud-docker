@@ -1,0 +1,57 @@
+version: "3.7"
+
+networks:
+  reverse-proxy:
+    external: true
+    name: reverse-proxy
+  onlyoffice:
+    external: true
+    name: onlyoffice
+  postgres:
+    external: true
+    name: postgres
+  internal:
+    driver: bridge
+
+services:
+  app:
+    build: .docker/app
+    volumes:
+      - ./volumes/nextcloud:/var/www/html
+    restart: always
+    environment:
+      - TZ
+      - 
+    networks:
+      - internal
+      - postgres
+      - onlyoffice
+  web:
+    container_name: web
+    build: .docker/web
+    restart: always
+    volumes:
+      - ./volumes/nextcloud:/var/www/html:ro
+    environment:
+      - VIRTUAL_HOST
+      - LETSENCRYPT_HOST
+      - LETSENCRYPT_EMAIL
+      - TZ
+    depends_on:
+      - app
+    networks:
+      - internal
+      - reverse-proxy
+      - onlyoffice 
+  cron:
+    build: .docker/app
+    restart: unless-stopped
+    volumes:
+      - ./volumes/nextcloud:/var/www/html
+      - ./volumes/cronfile:/var/spool/cron/crontabs/www-data
+    networks:
+      - internal
+      - postgres
+    environment:
+      - TZ
+    entrypoint: /cron.sh

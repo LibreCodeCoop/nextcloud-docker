@@ -67,7 +67,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./volumes/nextcloud:/var/www/html
-      - ./volumes/cronfile:/var/spool/cron/crontabs/www-data
+      - ./volumes/cron/cronfile:/var/spool/cron/crontabs/www-data
     networks:
       - internal
       - postgres

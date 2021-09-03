@@ -24,7 +24,7 @@ services:
     restart: always
     environment:
       - TZ
-      - POSTGRES_DATABASE
+      - POSTGRES_DB
       - POSTGRES_USER
       - POSTGRES_PASSWORD
       - POSTGRES_HOST

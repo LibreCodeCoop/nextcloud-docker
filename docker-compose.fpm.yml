@@ -10,6 +10,9 @@ networks:
   postgres:
     external: true
     name: postgres
+  redis:
+    external: true
+    name: redis
   internal:
     driver: bridge
 
@@ -21,7 +24,22 @@ services:
     restart: always
     environment:
       - TZ
-      - 
+      - POSTGRES_DATABASE
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_HOST
+      - NEXTCLOUD_ADMIN_USER
+      - NEXTCLOUD_ADMIN_PASSWORD
+      - REDIS_HOST
+      - NEXTCLOUD_TRUSTED_DOMAINS
+      - SMTP_HOST
+      - SMTP_SECURE
+      - SMTP_PORT
+      - SMTP_AUTHTYPE
+      - SMTP_NAME
+      - SMTP_PASSWORD
+      - MAIL_FROM_ADDRESS
+      - MAIL_DOMAIN
     networks:
       - internal
       - postgres

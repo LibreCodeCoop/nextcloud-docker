@@ -44,6 +44,7 @@ services:
       - internal
       - postgres
       - onlyoffice
+      - redis
   web:
     container_name: web
     build: .docker/web
@@ -71,6 +72,7 @@ services:
     networks:
       - internal
       - postgres
+      - redis
     environment:
       - TZ
     entrypoint: /cron.sh

@@ -43,8 +43,8 @@ services:
     volumes:
       - ./volumes/nextcloud:/var/www/html:ro
     environment:
-      - VIRTUAL_HOST=${NEXTCLOUD_TRUSTED_DOMAINS:-mydomain.coop}
-      - LETSENCRYPT_HOST=${NEXTCLOUD_TRUSTED_DOMAINS:-mydomain.coop}
+      - VIRTUAL_HOST
+      - LETSENCRYPT_HOST
       #- LETSENCRYPT_EMAIL=user@mydomain.coop
     depends_on:
       - app

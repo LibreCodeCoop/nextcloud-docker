@@ -34,6 +34,7 @@ services:
     restart: always
     volumes:
       - ./volumes/nextcloud:/var/www/html:ro
+      - ./volumes/nginx/includes:/etc/nginx/conf.d/includes:rw
     environment:
       - VIRTUAL_HOST=mydomain.coop
       - LETSENCRYPT_HOST=mydomain.coop

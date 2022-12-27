@@ -16,6 +16,7 @@ cp .env.example .env
 | [`LETSENCRYPT_HOST`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Basic-usage.md#step-3---proxyed-containers) | `web` |
 | [`LETSENCRYPT_EMAIL`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Let's-Encrypt-and-ACME.md#contact-address) | `web` |
 | `POSTGRES_PASSWORD` | `db` |
+| `NEXTCLOUD_TRUSTED_DOMAINS` | `app` |
 
 
 > **PS**: Let's Encrypt only work in servers when the `VIRTUAL_HOST` and `LETSENCRYPT_HOST` have a valid public domain registered in a DNS server. Don't try to use in localhost, don't work!
@@ -33,8 +34,8 @@ After finish the setup, access this url: https://localhost/settings/admin/overvi
 If is necessary run any occ command, run like this:
 
 ```bash
-docker-compose exec -u www-data app ./occ db:add-missing-indices
-docker-compose exec -u www-data app ./occ db:convert-filecache-bigint
+docker compose exec -u www-data app ./occ db:add-missing-indices
+docker compose exec -u www-data app ./occ db:convert-filecache-bigint
 ```
 
 ## PHP custom settings
@@ -44,8 +45,8 @@ If you need custom settings in PHP, change the file [`.docker/app/config/php.ini
 ## Run
 
 ```bash
-docker-compose up -d
-docker-compose -f docker-compose.proxy.yml up -d
+docker compose up -d
+docker compose -f docker-compose.proxy.yml up -d
 ```
 ## Use a specific version of NextCloud
 
@@ -54,14 +55,14 @@ Change the [Dockerfile](/.docker/app/Dockerfile#L1) in line 1 and put your prefe
 Build the images, down the containers and get up again:
 
 ```bash
-docker-compose build
-docker-compose down
-docker-compose up -d
+docker compose build
+docker compose down
+docker compose up -d
 ```
 
 If you want to see the changes, run:
 ```bash
-docker-compose logs -ft
+docker compose logs -ft
 ```
 You will see this message in the logs and other many upgrade messages:
 

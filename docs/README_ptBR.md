@@ -35,6 +35,7 @@ cp .env.example .env
 | [`LETSENCRYPT_HOST`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Basic-usage.md#step-3---proxyed-containers) | `web` |
 | [`LETSENCRYPT_EMAIL`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Let's-Encrypt-and-ACME.md#contact-address) | `web` |
 | `POSTGRES_PASSWORD` | `db` |
+| `NEXTCLOUD_TRUSTED_DOMAINS` | `app` |
 
 > **PS**: O Let's Encrypt somente funciona em servidores quando `VIRTUAL_HOST` e `LETSENCRYPT_HOST` possuirem um domínio público válido registrado em um servidor DNS. Não tente utilizar localhost, não irá funcionar!
 
@@ -46,8 +47,8 @@ docker network create reverse-proxy
 ## Colocando em execução
 Para o seu ambiente funcionar, utilize os seguintes comandos:
 ```bash
-docker-compose up -d
-docker-compose -f docker-compose.proxy.yml up -d
+docker compose up -d
+docker compose -f docker-compose.proxy.yml up -d
 ```
 
 ## Configuração WEB
@@ -69,8 +70,8 @@ Após terminado, abra a seguinte url https://SEU-DOMINIO/settings/admin/overview
 Caso seja necessário rodar algum comando `occ`, utilize os seguintes comandos:
 
 ```bash
-docker-compose exec -u www-data app ./occ db:add-missing-indices
-docker-compose exec -u www-data app ./occ db:convert-filecache-bigint
+docker compose exec -u www-data app ./occ db:add-missing-indices
+docker compose exec -u www-data app ./occ db:convert-filecache-bigint
 ```
 > **OBS**: app é o nome do seu container. Para listar os containers, utilize o comando ```docker-compose ps```
 
@@ -86,14 +87,14 @@ Altere o  [Dockerfile](/.docker/app/Dockerfile#L1) na linha de número 1 e coloq
 Construa as imagens e levante o container novamente:
 
 ```bash
-docker-compose build
-docker-compose down
-docker-compose up -d
+docker compose build
+docker compose down
+docker compose up -d
 ```
 
 Caso quiser ver as alterações, rode:
 ```bash
-docker-compose logs -ft
+docker compose logs -ft
 ```
 Você verá a seguinte mensagem nos logs, além de outras várias mensagens de upgrade:
 

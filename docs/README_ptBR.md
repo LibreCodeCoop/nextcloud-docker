@@ -51,18 +51,6 @@ docker compose up -d
 docker compose -f docker-compose.proxy.yml up -d
 ```
 
-## Configuração WEB
-Com o docker configurado e executando, agora vamos acessar o domínio definido e terminarmos a configuração. 
-
-Não iremos alterar a pasta de destino, escolheremos o banco PostgreSQL e iremos colocar as informações:
-
-- Nome do banco: nextcloud
-- Senha do banco: senha definida no .env
-- Usuário do banco: nextcloud
-- Endereço do banco: db
-
-Agora basta clicarmos em concluir configurações e aguardar.
-
 ## Após a instalação
 Após terminado, abra a seguinte url https://SEU-DOMINIO/settings/admin/overview
 

@@ -36,4 +36,4 @@ services:
       - ./volumes/nginx/html:/usr/share/nginx/html
       - ./certs:/etc/nginx/certs:rw
     environment:
-      - NGINX_PROXY_CONTAINER=nginx-proxy
+      - NGINX_PROXY_CONTAINER

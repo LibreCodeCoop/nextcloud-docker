@@ -20,52 +20,36 @@ sudo usermod -aG docker $USER
 ```bash
 rm get-docker.sh
 ```
-## Instalando o Docker Compose
-Baixe o docker-compose
-```bash
-sudo curl -L https://github.com/docker/compose/releases/download/1.25.5/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
-```
-Dê as permissões necessárias
-```bash
-sudo chmod +x /usr/local/bin/docker-compose
-```
+
 ## Alterações antes de rodar pela primeira vez
 
-- 1º: Altere a senha do seu banco de dados no arquivo `.env`.
+- 1º: Copie o arquivo `.env.example` para `.env` e altere os valores das variáveis de ambiente.
 
-- 2º: Crie uma rede utilizando o seguinte comando:
-```bash
-docker network create reverse-proxy
 ```
-- 3º: Edite os arquivos `docker-compose.yml` e `docker-compose.proxy.yml` e altere os seguintes ambientes conforme as suas necessidades
+cp .env.example .env
+```
 
 | Ambiente | Serviço | 
 |-------------|---------|
 | [`VIRTUAL_HOST`](https://github.com/nginx-proxy/nginx-proxy#usage) | `web` |
 | [`LETSENCRYPT_HOST`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Basic-usage.md#step-3---proxyed-containers) | `web` |
 | [`LETSENCRYPT_EMAIL`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Let's-Encrypt-and-ACME.md#contact-address) | `web` |
-| [`DEBUG`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/wiki/Container-configuration#optional-container-environment-variables-for-custom-configuration) | `nginx-letsencrypt` |
+| `POSTGRES_PASSWORD` | `db` |
+| `NEXTCLOUD_TRUSTED_DOMAINS` | `app` |
 
 > **PS**: O Let's Encrypt somente funciona em servidores quando `VIRTUAL_HOST` e `LETSENCRYPT_HOST` possuirem um domínio público válido registrado em um servidor DNS. Não tente utilizar localhost, não irá funcionar!
+
+- 2º: Crie uma rede utilizando o seguinte comando:
+```bash
+docker network create reverse-proxy
+```
 
 ## Colocando em execução
 Para o seu ambiente funcionar, utilize os seguintes comandos:
 ```bash
-docker-compose up -d
-docker-compose -f docker-compose.proxy.yml up -d
+docker compose up -d
+docker compose -f docker-compose.proxy.yml up -d
 ```
-
-## Configuração WEB
-Com o docker configurado e executando, agora vamos acessar o domínio definido e terminarmos a configuração. 
-
-Não iremos alterar a pasta de destino, escolheremos o banco PostgreSQL e iremos colocar as informações:
-
-- Nome do banco: nextcloud
-- Senha do banco: senha definida no .env
-- Usuário do banco: nextcloud
-- Endereço do banco: db
-
-Agora basta clicarmos em concluir configurações e aguardar.
 
 ## Após a instalação
 Após terminado, abra a seguinte url https://SEU-DOMINIO/settings/admin/overview
@@ -74,8 +58,8 @@ Após terminado, abra a seguinte url https://SEU-DOMINIO/settings/admin/overview
 Caso seja necessário rodar algum comando `occ`, utilize os seguintes comandos:
 
 ```bash
-docker-compose exec -u www-data app ./occ db:add-missing-indices
-docker-compose exec -u www-data app ./occ db:convert-filecache-bigint
+docker compose exec -u www-data app ./occ db:add-missing-indices
+docker compose exec -u www-data app ./occ db:convert-filecache-bigint
 ```
 > **OBS**: app é o nome do seu container. Para listar os containers, utilize o comando ```docker-compose ps```
 
@@ -91,14 +75,14 @@ Altere o  [Dockerfile](/.docker/app/Dockerfile#L1) na linha de número 1 e coloq
 Construa as imagens e levante o container novamente:
 
 ```bash
-docker-compose build
-docker-compose down
-docker-compose up -d
+docker compose build
+docker compose down
+docker compose up -d
 ```
 
 Caso quiser ver as alterações, rode:
 ```bash
-docker-compose logs -ft
+docker compose logs -ft
 ```
 Você verá a seguinte mensagem nos logs, além de outras várias mensagens de upgrade:
 

@@ -25,6 +25,10 @@ rm get-docker.sh
 
 - 1º: Copie o arquivo `.env.example` para `.env` e altere os valores das variáveis de ambiente.
 
+```
+cp .env.example .env
+```
+
 | Ambiente | Serviço | 
 |-------------|---------|
 | [`VIRTUAL_HOST`](https://github.com/nginx-proxy/nginx-proxy#usage) | `web` |

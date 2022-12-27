@@ -6,6 +6,10 @@
 
 Copy the `.env.example` to `.env` and set the values.
 
+```
+cp .env.example .env
+```
+
 | Environment | service | 
 |-------------|---------|
 | [`VIRTUAL_HOST`](https://github.com/nginx-proxy/nginx-proxy#usage) | `web` |

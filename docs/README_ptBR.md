@@ -1,92 +1,122 @@
-# NextCloud com SSL e Docker
-Caso esteja com dúvidas, preparamos um vídeo explicando os passos abaixo para facilitar a compreensão. 
-[`Vídeo de instalação`](https://www.youtube.com/watch?v=48rYcegMWgc)
+# Nextcloud com SSL e Docker
+- [Nextcloud com SSL e Docker](#nextcloud-com-ssl-e-docker)
+  - [Configuração do Docker](#configuração-do-docker)
+  - [Configuração de proxy](#configuração-de-proxy)
+  - [Antes da primeira execução](#antes-da-primeira-execução)
+  - [Após a configuração](#após-a-configuração)
+  - [Configuração personalizada](#configuração-personalizada)
+    - [Personalize o conteúdo do docker-compose](#personalize-o-conteúdo-do-docker-compose)
+    - [PHP](#php)
+  - [Execute o Nextcloud](#execute-o-nextcloud)
+  - [Use uma versão específica do Nextcloud](#use-uma-versão-específica-do-nextcloud)
+  - [Logs](#logs)
 
-## Instalando o Docker
+## Configuração do Docker
+
 Você precisa ter, em seu servidor, o Docker instalado. A instalação pode ser feita com um script oficial, seguindo os seguintes passos:
-- 1º: Baixar o docker
+- Baixe o Docker
 ```bash
 curl -fsSL https://get.docker.com -o get-docker.sh
 ```
-- 2º: Executar o script
+- Execute o script
 ```bash
 sh get-docker.sh
 ```
-- 3º: Dar permissões para executar o comando docker ao seu usuário
+- Conceda permissões para executar o comando Docker para seu usuário
 ```bash
 sudo usermod -aG docker $USER
 ```
-- 4º: Remover o script de instalação
+- Remova o script de instalação
 ```bash
 rm get-docker.sh
 ```
 
-## Alterações antes de rodar pela primeira vez
+## Configuração de proxy
 
-- 1º: Copie o arquivo `.env.example` para `.env` e altere os valores das variáveis de ambiente.
+Siga as instruções deste repositório:
 
-```
+https://github.com/LibreCodeCoop/nginx-proxy
+
+## Antes da primeira execução
+
+Copie o `.env.example` para `.env` e defina os valores.
+
+```bash
 cp .env.example .env
 ```
 
-| Ambiente | Serviço | 
-|-------------|---------|
-| [`VIRTUAL_HOST`](https://github.com/nginx-proxy/nginx-proxy#usage) | `web` |
-| [`LETSENCRYPT_HOST`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Basic-usage.md#step-3---proxyed-containers) | `web` |
-| [`LETSENCRYPT_EMAIL`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Let's-Encrypt-and-ACME.md#contact-address) | `web` |
-| `POSTGRES_PASSWORD` | `db` |
-| `NEXTCLOUD_TRUSTED_DOMAINS` | `app` |
+| Ambiente | serviço | Descrição |
+|-------------|---------|-------|
+| [`VIRTUAL_HOST`](https://github.com/nginx-proxy/nginx-proxy#usage) | `web` | Seu domínio |
+| [`LETSENCRYPT_HOST`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Basic-usage.md#step-3---proxyed-containers) | `web` | Seu domínio |
+| [`LETSENCRYPT_EMAIL`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Let's-Encrypt-and-ACME.md#contact-address) | `web` | Seu email de administrador de sistema |
+| `NEXTCLOUD_TRUSTED_DOMAINS` | `app` | domínios separados por vírgula. O domínio `web` é obrigatório, adicione seu domínio junto com o domínio `web`. O domínio `web` é o domínio do serviço Nginx. |
 
-> **PS**: O Let's Encrypt somente funciona em servidores quando `VIRTUAL_HOST` e `LETSENCRYPT_HOST` possuirem um domínio público válido registrado em um servidor DNS. Não tente utilizar localhost, não irá funcionar!
+> **PS**: A Let's Encrypt só funciona em servidores quando os `VIRTUAL_HOST` e `LETSENCRYPT_HOST` têm um domínio público válido registrado em um servidor DNS. Não tente usá-lo em localhost, não funciona!
 
-- 2º: Crie uma rede utilizando o seguinte comando:
+Crie uma rede
+
 ```bash
 docker network create reverse-proxy
 ```
 
-## Colocando em execução
-Para o seu ambiente funcionar, utilize os seguintes comandos:
-```bash
-docker compose up -d
-docker compose -f docker-compose.proxy.yml up -d
-```
+## Após a configuração
 
-## Após a instalação
-Após terminado, abra a seguinte url https://SEU-DOMINIO/settings/admin/overview
+Após concluir a configuração, acesse esta URL: https://seudomínio.tld/settings/admin/overview.
 
-
-Caso seja necessário rodar algum comando `occ`, utilize os seguintes comandos:
+Se for necessário executar algum comando occ, execute da seguinte forma:
 
 ```bash
 docker compose exec -u www-data app ./occ db:add-missing-indices
 docker compose exec -u www-data app ./occ db:convert-filecache-bigint
 ```
-> **OBS**: app é o nome do seu container. Para listar os containers, utilize o comando ```docker-compose ps```
 
-## Configurações personalizadas do PHP
+ ## Configuração personalizada
 
-Caso você precisar alterar alguma configuração do PHP, acesse o seguinte arquivo [`.docker/app/config/php.ini`](/.docker/app/config/php.ini).
+### Personalize o conteúdo do docker-compose
 
+Você pode fazer isso usando variáveis de ambiente e criando um arquivo chamado `docker-compose.override.yml` para adicionar novos serviços.
 
-## Utilizando uma versão específica do Nextcloud
+### PHP
 
-Altere o  [Dockerfile](/.docker/app/Dockerfile#L1) na linha de número 1 e coloque a versão desejada.
+- Crie seu arquivo `.ini` na pasta `volumes/php/`. Exemplo: `volumes/php/xdebug.ini`
+- Altere o arquivo `docker-compose.override.yml` adicionando seu volume
+```yaml
+services:
+  app:
+    volumes:
+      - ./volumes/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+```
 
-Construa as imagens e levante o container novamente:
+## Execute o Nextcloud
 
 ```bash
-docker compose build
-docker compose down
+# O serviço postgres é executado separadamente para que seja possível reutilizar este serviço para outras aplicações que usam PostgreSQL
+docker compose up -f docker-compose-postgres.yml -d
+docker compose up -d
+docker compose -d
+```
+## Use uma versão específica do Nextcloud
+
+Altere o valor de `NEXTCLOUD_VERSION` no arquivo `.env` e coloque o nome do rótulo que deseja usar. Verifique as tags disponíveis aqui: https://hub.docker.com/_/nextcloud/tags
+
+Construa as imagens, derrube os contêineres e inicie-os novamente:
+
+```bash
+docker compose build --pull
 docker compose up -d
 ```
 
-Caso quiser ver as alterações, rode:
-```bash
-docker compose logs -ft
-```
-Você verá a seguinte mensagem nos logs, além de outras várias mensagens de upgrade:
+## Logs
 
+Se você quiser ver os logs, execute:
+
+```bash
+docker compose logs -f --tail=100
 ```
-app_1      | 2020-04-28T19:49:38.568623133Z Initializing nextcloud 18.0.4.2 ...
-app_1      | 2020-04-28T19:49:38.577733913Z Upgrading nextcloud from 18.0.3.0 ...
+Você verá esta mensagem nos logs e muitas outras mensagens de atualização:
+
+```log
+app_1      | 2020-04-28T19:49:38.568623133Z Inicializando o Nextcloud 18.0.4.2 ...
+app_1      | 2020-04-28T19:49:38.577733913Z Atualizando o Nextcloud a partir da versão 18.0.3.0 ...
 ```

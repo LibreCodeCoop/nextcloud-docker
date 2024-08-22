@@ -2,9 +2,6 @@ networks:
   reverse-proxy:
     external: true
     name: reverse-proxy
-  postgres:
-    external: true
-    name: postgres
   internal:
     driver: bridge
 
@@ -35,7 +32,6 @@ services:
       - MAIL_DOMAIN
       - TZ
     networks:
-      - postgres
       - internal
 
   web:
@@ -60,6 +56,5 @@ services:
     volumes:
       - ./volumes/nextcloud:/var/www/html
     networks:
-      - postgres
       - internal
     entrypoint: /cron.sh

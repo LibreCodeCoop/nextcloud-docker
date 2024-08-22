@@ -15,3 +15,9 @@ services:
       - POSTGRES_PASSWORD
     networks:
       - postgres
+  app:
+    networks:
+      - postgres
+  cron:
+    networks:
+      - postgres

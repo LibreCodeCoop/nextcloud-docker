@@ -2,34 +2,26 @@ networks:
   reverse-proxy:
     external: true
     name: reverse-proxy
+  postgres:
+    external: true
+    name: postgres
   internal:
     driver: bridge
 
 services:
-  db:
-    image: postgres:11-alpine
-    restart: always
-    volumes:
-      - ./volumes/postgres/data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_DB
-      - POSTGRES_USER
-      - POSTGRES_PASSWORD
-    networks:
-      - internal
-
   app:
-    build: .docker/app
-    links:
-      - db
+    build:
+      context: .docker/app
+      args:
+        NEXTCLOUD_VERSION: ${NEXTCLOUD_VERSION:-stable-fpm}
     volumes:
       - ./volumes/nextcloud:/var/www/html
-    restart: always
+    restart: unless-stopped
     environment:
-      - POSTGRES_DB
-      - POSTGRES_USER
+      - POSTGRES_DB=${POSTGRES_DB:-nextcloud}
+      - POSTGRES_USER=${POSTGRES_USER:-nextcloud}
       - POSTGRES_PASSWORD
-      - POSTGRES_HOST
+      - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
       - NEXTCLOUD_ADMIN_USER
       - NEXTCLOUD_ADMIN_PASSWORD
       - NEXTCLOUD_TRUSTED_DOMAINS
@@ -41,13 +33,14 @@ services:
       - SMTP_PASSWORD
       - MAIL_FROM_ADDRESS
       - MAIL_DOMAIN
+      - TZ
     networks:
+      - postgres
       - internal
 
   web:
-    container_name: web
     build: .docker/web
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./volumes/nextcloud:/var/www/html:ro
       - ./volumes/nginx/includes:/etc/nginx/conf.d/includes:rw
@@ -60,25 +53,13 @@ services:
     networks:
       - internal
       - reverse-proxy
-      
+
   cron:
     build: .docker/app
     restart: unless-stopped
     volumes:
       - ./volumes/nextcloud:/var/www/html
     networks:
+      - postgres
       - internal
     entrypoint: /cron.sh
-
-  #documentserver:
-  #  image: onlyoffice/documentserver
-  #  restart: always
-  #  environment:
-  #    - VIRTUAL_HOST=${VIRTUAL_HOST_ONLYOFFICE}
-  #    - LETSENCRYPT_HOST=${LETSENCRYPT_HOST_ONLYOFFICE}
-  #  volumes:
-  #    - ./volumes/onlyoffice/DocumentServer/logs:/var/log/onlyoffice
-  #    - ./volumes/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data
-  #  networks:
-  #    - internal
-  #    - reverse-proxy

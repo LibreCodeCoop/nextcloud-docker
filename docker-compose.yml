@@ -53,6 +53,8 @@ services:
   cron:
     build: .docker/app
     restart: unless-stopped
+    environment:
+      - TZ
     volumes:
       - ./volumes/nextcloud:/var/www/html
     networks:

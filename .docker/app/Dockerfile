@@ -1,9 +1,6 @@
 ARG NEXTCLOUD_VERSION=stable-fpm
 
-ENV PHP_PM_MAX_CHILDREN=10
-ENV PHP_PM_START_SERVERS=2
-ENV PHP_PM_MIN_SPARE_SERVERS=1
-ENV PHP_PM_MAX_SPARE_SERVERS=3
+
 
 FROM nextcloud:${NEXTCLOUD_VERSION}
 
@@ -12,7 +9,10 @@ RUN chmod uga+x /usr/local/bin/install-php-extensions && sync \
     && install-php-extensions \
     bz2
 
-
+ENV PHP_PM_MAX_CHILDREN=10
+ENV PHP_PM_START_SERVERS=2
+ENV PHP_PM_MIN_SPARE_SERVERS=1
+ENV PHP_PM_MAX_SPARE_SERVERS=3
     
 RUN set -eux; \
     echo '[www]' > /usr/local/etc/php-fpm.d/zz-pm.conf; \

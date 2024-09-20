@@ -24,6 +24,8 @@ services:
       - db
     volumes:
       - ./volumes/nextcloud:/var/www/html
+      - ./volumes/php/pm.ini:/usr/local/etc/php/conf.d/
+
     restart: always
     environment:
       - POSTGRES_DB

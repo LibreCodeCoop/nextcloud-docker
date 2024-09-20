@@ -70,3 +70,11 @@ You will see this message in the logs and other many upgrade messages:
 app_1      | 2020-04-28T19:49:38.568623133Z Initializing nextcloud 18.0.4.2 ...
 app_1      | 2020-04-28T19:49:38.577733913Z Upgrading nextcloud from 18.0.3.0 ...
 ```
+
+## Tunning
+
+You can change this [file](/volumes/php/pm.ini) according to your needs.
+
+More information [here](https://docs.nextcloud.com/server/26/admin_manual/installation/server_tuning.html#tune-php-fpm)
+
+

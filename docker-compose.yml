@@ -51,7 +51,10 @@ services:
       - reverse-proxy
 
   cron:
-    build: .docker/app
+    build:
+      context: .docker/app
+      args:
+        NEXTCLOUD_VERSION: ${NEXTCLOUD_VERSION:-stable-fpm}
     restart: unless-stopped
     environment:
       - TZ

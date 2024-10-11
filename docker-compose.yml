@@ -44,6 +44,7 @@ services:
       - VIRTUAL_HOST
       - LETSENCRYPT_HOST
       - LETSENCRYPT_EMAIL
+      - TZ
     depends_on:
       - app
     networks:

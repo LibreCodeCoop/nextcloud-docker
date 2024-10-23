@@ -1,7 +1,6 @@
 networks:
-  postgres:
-    external: true
-    name: postgres
+  internal:
+    driver: bridge
 
 services:
   postgres:
@@ -10,14 +9,9 @@ services:
     volumes:
       - ./volumes/postgres/data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB
-      - POSTGRES_USER
+      - POSTGRES_DB=${POSTGRES_DB:-nextcloud}
+      - POSTGRES_USER=${POSTGRES_USER:-nextcloud}
       - POSTGRES_PASSWORD
     networks:
-      - postgres
-  app:
-    networks:
-      - postgres
-  cron:
-    networks:
-      - postgres
+      - internal
+

@@ -4,7 +4,7 @@ networks:
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:${POSTGRES_VERSION:-17}-alpine
     restart: always
     volumes:
       - ./volumes/postgres/data:/var/lib/postgresql/data

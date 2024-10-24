@@ -97,7 +97,7 @@ services:
 
 ```bash
 # The postgres service is executed separated to be possible reuse this service to other applications that use PostgreSQL
-docker compose up -f docker-compose-postgres.yml -d
+docker compose -f docker-compose-postgres.yml up -d
 docker compose up -d
 docker compose -d
 ```

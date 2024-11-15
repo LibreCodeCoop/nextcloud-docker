@@ -93,6 +93,26 @@ services:
       - ./volumes/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
 ```
 
+- For PHP-FPM modifications, include the following volume to the app service in `docker-compose.override.yml` file:
+```yaml
+services:
+  app:
+    volumes:
+        - ./volumes/php/pm.ini:/usr/local/etc/php/conf.d/
+```
+- Create a file  `./volumes/php/pm.ini` with the following content (see references for tunning according your setup):
+```yaml
+[www]
+pm.max_children = 10
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+```
+
+- References:
+- https://docs.nextcloud.com/server/21/admin_manual/installation/server_tuning.html#tune-php-fpm
+- https://spot13.com/pmcalculator/
+
 ## Run Nextcloud
 
 ```bash

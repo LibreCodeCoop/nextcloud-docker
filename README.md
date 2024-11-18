@@ -93,6 +93,9 @@ services:
       - ./volumes/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
 ```
 
+
+### PHP-FPM
+
 - For PHP-FPM modifications, include the following volume to the app service in `docker-compose.override.yml` file:
 ```yaml
 services:

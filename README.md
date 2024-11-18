@@ -5,6 +5,7 @@ Languages avaliable: [pt-BR](docs/README_ptBR.md)
 - [Nextcloud with SSL and Docker](#nextcloud-with-ssl-and-docker)
   - [Setup of docker](#setup-of-docker)
   - [Setup of proxy](#setup-of-proxy)
+  - [Setup of database](#setup-of-database)
   - [Before first run](#before-first-run)
   - [After setup](#after-setup)
   - [Custom setup](#custom-setup)
@@ -39,6 +40,12 @@ rm get-docker.sh
 Follow the instructions of this repository:
 
 https://github.com/LibreCodeCoop/nginx-proxy
+
+## Setup of database
+
+Follow the instructions of this repository:
+
+https://github.com/LibreCodeCoop/postgres-docker
 
 ## Before first run
 

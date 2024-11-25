@@ -54,9 +54,11 @@ cp .env.example .env
 | [`LETSENCRYPT_HOST`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Basic-usage.md#step-3---proxyed-containers) | `web` | Your domain |
 | [`LETSENCRYPT_EMAIL`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Let's-Encrypt-and-ACME.md#contact-address) | `web` | Your sysadmin email |
 | `NEXTCLOUD_TRUSTED_DOMAINS` | `app` | domains separated by comma. The domain web is mandatory, add your domain together with whe domain web. The domain `web` is the domain of Nginx service. |
-
+| `TRUSTED_PROXIES` | `app` | Array of IP addresses, IPv4 ranges in CIDR notation, IPv6 addresses to define the servers Nextcloud should trust as proxies.  |
 
 > **PS**: Let's Encrypt only work in servers when the `VIRTUAL_HOST` and `LETSENCRYPT_HOST` have a valid public domain registered in a DNS server. Don't try to use in localhost, don't work!
+
+> **PS^2**: Setting TRUSTED_PROXIES to `172.0.0.0/8` it's not a best practice but will eventually work.
 
 Create a network 
 

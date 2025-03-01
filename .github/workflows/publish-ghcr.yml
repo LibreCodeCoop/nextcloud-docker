@@ -11,5 +11,5 @@ jobs:
       - name: Build and push the image
         run: |
           docker login --username librecode --password ${{ secrets.GH_PAT }} ghcr.io
-          docker build . --tag ghcr.io/librecode/imagens-nextcloud:30
-          docker push ghcr.io/librecode/imagens-nextcloud:30
+          docker build . --tag ghcr.io/librecodecoop/nextcloud-images:30
+          docker push ghcr.io/librecodecoop/nextcloud-images:30

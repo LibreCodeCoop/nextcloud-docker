@@ -10,6 +10,6 @@ jobs:
       - uses: actions/checkout@v3
       - name: Build and push the image
         run: |
-          docker login --username librecode --password ${{ secrets.GH_PAT }} ghcr.io
+          docker login --username henmohr --password ${{ secrets.GH_PAT }} ghcr.io
           docker build . --tag ghcr.io/librecodecoop/nextcloud-images:30
           docker push ghcr.io/librecodecoop/nextcloud-images:30

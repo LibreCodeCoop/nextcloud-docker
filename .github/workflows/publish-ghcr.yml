@@ -1,15 +1,25 @@
 name: Docker image CI for GHCR
 
 on:
-  push
+  push:
+    branches:
+      - add-actions
 
 jobs:
-  build_and_publish:
+  build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-      - name: Build and push the image
-        run: |
-          docker login --username henmohr --password ${{ secrets.GH_PAT }} ghcr.io
-          docker build . --tag ghcr.io/librecodecoop/nextcloud-images:30
-          docker push ghcr.io/librecodecoop/nextcloud-images:30
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Log in to GitHub Container Registry
+      run: echo ${{ secrets.GH_PAT }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Build Docker image
+      run: docker build -t ghcr.io/librecodecoop/nextcloud-images:30 .
+
+    - name: Push Docker image
+      run: docker push ghcr.io/librecodecoop/nextcloud-images:30
+
+      

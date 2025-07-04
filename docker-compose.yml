@@ -13,6 +13,7 @@ services:
         NEXTCLOUD_VERSION: ${NEXTCLOUD_VERSION:-stable-fpm}
     volumes:
       - ./volumes/nextcloud:/var/www/html
+      - ./app-hooks/post-installation:/docker-entrypoint-hooks.d/post-installation
     restart: unless-stopped
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-nextcloud}
@@ -21,6 +22,7 @@ services:
       - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
       - NEXTCLOUD_ADMIN_USER
       - NEXTCLOUD_ADMIN_PASSWORD
+      - NEXTCLOUD_ADMIN_EMAIL
       - NEXTCLOUD_TRUSTED_DOMAINS
       - SMTP_HOST
       - SMTP_SECURE

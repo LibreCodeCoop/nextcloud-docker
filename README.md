@@ -61,7 +61,22 @@ cp .env.example .env
 | [`LETSENCRYPT_HOST`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Basic-usage.md#step-3---proxyed-containers) | `web` | Your domain |
 | [`LETSENCRYPT_EMAIL`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Let's-Encrypt-and-ACME.md#contact-address) | `web` | Your sysadmin email |
 | `NEXTCLOUD_TRUSTED_DOMAINS` | `app` | domains separated by comma. The domain web is mandatory, add your domain together with whe domain web. The domain `web` is the domain of Nginx service. |
-
+| `POSTGRES_DB` | `db` | PostgreSQL database name (default: nextcloud) |
+| `POSTGRES_USER` | `db` | PostgreSQL database user (default: nextcloud) |
+| `POSTGRES_PASSWORD` | `db` | PostgreSQL database user password |
+| `POSTGRES_HOST` | `app` | PostgreSQL server host (default: postgres) |
+| `NEXTCLOUD_ADMIN_USER` | `app` | Nextcloud administrator username |
+| `NEXTCLOUD_ADMIN_PASSWORD` | `app` | Nextcloud administrator password |
+| `NEXTCLOUD_ADMIN_EMAIL` | `app` | Nextcloud administrator email |
+| `SMTP_HOST` | `app` | SMTP server for email sending |
+| `SMTP_SECURE` | `app` | SMTP security type (ssl, tls, or empty) |
+| `SMTP_PORT` | `app` | SMTP server port |
+| `SMTP_AUTHTYPE` | `app` | SMTP authentication type (LOGIN, PLAIN, NTLM) |
+| `SMTP_NAME` | `app` | Username for SMTP authentication |
+| `SMTP_PASSWORD` | `app` | Password for SMTP authentication |
+| `MAIL_FROM_ADDRESS` | `app` | Sender email address |
+| `MAIL_DOMAIN` | `app` | Sender email domain |
+| `TZ` | `app` | Timezone (e.g., America/Sao_Paulo) |
 
 > **PS**: Let's Encrypt only work in servers when the `VIRTUAL_HOST` and `LETSENCRYPT_HOST` have a valid public domain registered in a DNS server. Don't try to use in localhost, don't work!
 

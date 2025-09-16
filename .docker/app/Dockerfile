@@ -12,5 +12,3 @@ upload_max_filesize=20G
 opcache.interned_strings_buffer=64
 opcache.memory_consumption=256
 EOF
-
-#COPY ./config/php.ini /usr/local/etc/php/conf.d/

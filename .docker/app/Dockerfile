@@ -7,4 +7,4 @@ RUN chmod uga+x /usr/local/bin/install-php-extensions && sync \
     && install-php-extensions \
     bz2
 
-COPY config/php.ini /usr/local/etc/php/conf.d/
+COPY ./config/php.ini /usr/local/etc/php/conf.d/

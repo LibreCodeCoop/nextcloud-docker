@@ -1,12 +1,14 @@
 name: Build and Push Docker Image
+
 on:
   push:
     branches:
       - add-actions
+      - main
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-
 
 concurrency:
   group: push-to-registry-${{ github.head_ref || github.run_id }}
@@ -14,58 +16,45 @@ concurrency:
 
 jobs:
   push_to_registry:
-    name: Build image
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-
+    
     permissions:
-      packages: write
       contents: read
+      packages: write
+      
     steps:
-      - name: Check out the repo
+      - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Docker meta
-        uses: docker/metadata-action@v5
-        id: meta
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Cache Docker layers
-        uses: actions/cache@v4
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ matrix.container }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ matrix.container }}-buildx-
-      - name: Log in to GitHub Container Registry
+        
+      - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build container image
+          
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+          
+      - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          push: false
           context: .docker
-          platforms: linux/amd64,linux/arm64
           file: .docker/app/Dockerfile
-          tags: ${{ steps.meta.outputs.tags }}
-
-      - name: Push container image
-        uses: docker/build-push-action@v6
-        with:
+          platforms: linux/amd64,linux/arm64
           push: true
-          context: .docker
-          platforms: linux/amd64,linux/arm64
-          file: .docker/app/Dockerfile
           tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

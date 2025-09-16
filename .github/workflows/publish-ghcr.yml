@@ -7,49 +7,27 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    
-    # Permissões necessárias para o GITHUB_TOKEN
-    permissions:
-      contents: read
-      packages: write
-      
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Log in to GitHub Container Registry
+      run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Build Docker APP image
+      run: docker build -t ghcr.io/librecodecoop/nextcloud-app:31-fpm-latest -f .docker/app/Dockerfile .
+      
+    - name: Build Docker WEB image
+      run: docker build -t ghcr.io/librecodecoop/nextcloud-web:31-fpm-latest -f .docker/web/Dockerfile .
+
+
+    - name: Push Docker APP image
+      run: docker push ghcr.io/librecodecoop/nextcloud-app:31-fpm-latest
+
+    - name: Push Docker WEB image
+      run: docker push ghcr.io/librecodecoop/nextcloud-web:31-fpm-latest

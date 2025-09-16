@@ -8,26 +8,82 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 
+concurrency:
+  group: push-to-registry-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  push_to_registry:
+    name: Build image
     runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: false
+      matrix:
+        image_type: [apache,fpm]
+    permissions:
+      packages: write
+      contents: read
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Log in to GitHub Container Registry
-      run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-    - name: Build Docker APP image
-      run: docker build . -t ghcr.io/librecodecoop/nextcloud-app:31-fpm-latest -f .docker/app/Dockerfile
-      
-    - name: Build Docker WEB image
-      run: docker build . -t ghcr.io/librecodecoop/nextcloud-web:31-fpm-latest -f .docker/web/Dockerfile
-
-
-    - name: Push Docker APP image
-      run: docker push ghcr.io/librecodecoop/nextcloud-app:31-fpm-latest
-
-    - name: Push Docker WEB image
-      run: docker push ghcr.io/librecodecoop/nextcloud-web:31-fpm-latest
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      - name: Docker meta
+        uses: docker/metadata-action@v5
+        id: meta
+        with:
+          # list of Docker images to use as base name for tags
+          images: |
+            ghcr.io/librecodecoop/nextcloud-docker
+          # generate Docker tags based on the following events/attributes
+          tags: |
+            type=semver,pattern={{version}},value=${{ inputs.mautic_version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ inputs.mautic_version }},enable=${{ inputs.overwrite_latest_minor }}
+            type=semver,pattern={{major}},value=${{ inputs.mautic_version }},enable=${{ inputs.overwrite_latest_major }}
+            type=raw,value=latest,enable=${{ inputs.tag_as_latest && matrix.image_type == 'apache' }},suffix=
+          flavor: |
+            latest=false
+            prefix=
+            suffix=-${{ matrix.image_type }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ matrix.container }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ matrix.container }}-buildx-
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build container image
+        uses: docker/build-push-action@v6
+        with:
+          push: false
+          context: .docker
+          platforms: linux/amd64,linux/arm64
+          file: .docker/Dockerfile.${{ matrix.image_type }}
+          tags: ${{ steps.meta.outputs.tags }}
+          build-args: |
+            MAUTIC_VERSION=${{ inputs.mautic_version }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+      - name: Push container image
+        uses: docker/build-push-action@v6
+        if: github.ref == 'refs/heads/main' || inputs.publish
+        with:
+          push: true
+          context: .docker
+          platforms: linux/amd64,linux/arm64
+          file: .docker/Dockerfile.${{ matrix.image_type }}
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache

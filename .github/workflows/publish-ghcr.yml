@@ -20,10 +20,10 @@ jobs:
       run: echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
     - name: Build Docker APP image
-      run: docker build -t ghcr.io/librecodecoop/nextcloud-app:31-fpm-latest -f .docker/app/Dockerfile .
+      run: docker build . -t ghcr.io/librecodecoop/nextcloud-app:31-fpm-latest -f .docker/app/Dockerfile
       
     - name: Build Docker WEB image
-      run: docker build -t ghcr.io/librecodecoop/nextcloud-web:31-fpm-latest -f .docker/web/Dockerfile .
+      run: docker build . -t ghcr.io/librecodecoop/nextcloud-web:31-fpm-latest -f .docker/web/Dockerfile
 
 
     - name: Push Docker APP image

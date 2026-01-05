@@ -123,9 +123,9 @@ services:
 services:
   app:
     volumes:
-        - ./volumes/php/pm.ini:/usr/local/etc/php/conf.d/
+      - ./volumes/php/pm.conf:/usr/local/etc/php-fpm.d/pm.conf
 ```
-- Create a file  `./volumes/php/pm.ini` with the following content (see references for tunning according your setup):
+- Create a file  `./volumes/php/pm.conf` with the following content (see references for tunning according your setup):
 ```yaml
 [www]
 pm.max_children = 10

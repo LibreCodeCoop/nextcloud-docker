@@ -77,7 +77,9 @@ cp .env.example .env
 | `MAIL_FROM_ADDRESS` | `app` | Sender email address |
 | `MAIL_DOMAIN` | `app` | Sender email domain |
 | `TZ` | `app` | Timezone (e.g., America/Sao_Paulo) |
+| `TRASHBIN_RETENTION_OBLIGATION` | `app` | Number of days files should remain in the recycle bin before being cleaned. |
 
+número de dias que os arquivos devem ficar retidos na liceira antes da limpeza
 > **PS**: Let's Encrypt only work in servers when the `VIRTUAL_HOST` and `LETSENCRYPT_HOST` have a valid public domain registered in a DNS server. Don't try to use in localhost, don't work!
 
 Create a network 

@@ -10,6 +10,115 @@ log() {
     echo "[pre-upgrade] $*"
 }
 
+read_nextcloud_db_config() {
+    php <<'PHP'
+<?php
+$config = include '/var/www/html/config/config.php';
+if (!is_array($config)) {
+    exit(1);
+}
+
+$keys = ['dbtype', 'dbname', 'dbhost', 'dbport', 'dbuser', 'dbpassword'];
+foreach ($keys as $key) {
+    $value = $config[$key] ?? '';
+    if (is_array($value)) {
+        $value = '';
+    }
+    echo $value, PHP_EOL;
+}
+PHP
+}
+
+parse_db_host() {
+    DB_HOST="${1:-}"
+    DB_PORT="${2:-}"
+
+    if [ -z "${DB_PORT}" ] && [[ "${DB_HOST}" == *:* ]] && [[ "${DB_HOST}" != \[*\] ]]; then
+        DB_PORT="${DB_HOST##*:}"
+        DB_HOST="${DB_HOST%%:*}"
+    fi
+}
+
+backup_database() {
+    local db_type db_name db_host_raw db_port_raw db_user db_password dump_path engine_label
+    local db_config=()
+
+    if [ ! -f /var/www/html/config/config.php ]; then
+        log "Skipping database backup (config.php not found)"
+        return 0
+    fi
+
+    if ! mapfile -t db_config < <(read_nextcloud_db_config); then
+        log "Skipping database backup (failed to read database config)"
+        return 0
+    fi
+
+    db_type="${db_config[0]:-}"
+    db_name="${db_config[1]:-}"
+    db_host_raw="${db_config[2]:-}"
+    db_port_raw="${db_config[3]:-}"
+    db_user="${db_config[4]:-}"
+    db_password="${db_config[5]:-}"
+
+    if [ -z "${db_type}" ] || [ -z "${db_name}" ] || [ -z "${db_user}" ]; then
+        log "Skipping database backup (database config is incomplete)"
+        return 0
+    fi
+
+    parse_db_host "${db_host_raw}" "${db_port_raw}"
+
+    case "${db_type}" in
+        pgsql)
+            if ! command -v pg_dump >/dev/null 2>&1; then
+                log "Skipping database backup (pg_dump is not installed)"
+                return 0
+            fi
+
+            if [ -z "${DB_HOST}" ] || [ -z "${db_password}" ]; then
+                log "Skipping database backup (PostgreSQL host or password is missing)"
+                return 0
+            fi
+
+            dump_path="${BACKUP_DIR}/postgres.sql"
+            engine_label="PostgreSQL"
+            if [ -n "${DB_PORT}" ]; then
+                PGPASSWORD="${db_password}" pg_dump -h "${DB_HOST}" -p "${DB_PORT}" -U "${db_user}" "${db_name}" > "${dump_path}"
+            else
+                PGPASSWORD="${db_password}" pg_dump -h "${DB_HOST}" -U "${db_user}" "${db_name}" > "${dump_path}"
+            fi
+            ;;
+        mysql|mysqli)
+            if ! command -v mysqldump >/dev/null 2>&1; then
+                log "Skipping database backup (mysqldump is not installed)"
+                return 0
+            fi
+
+            if [ -z "${DB_HOST}" ] || [ -z "${db_password}" ]; then
+                log "Skipping database backup (MySQL/MariaDB host or password is missing)"
+                return 0
+            fi
+
+            dump_path="${BACKUP_DIR}/mysql.sql"
+            engine_label="MySQL/MariaDB"
+            if [ -n "${DB_PORT}" ]; then
+                mysqldump --host="${DB_HOST}" --port="${DB_PORT}" --user="${db_user}" --password="${db_password}" --single-transaction --quick "${db_name}" > "${dump_path}"
+            else
+                mysqldump --host="${DB_HOST}" --user="${db_user}" --password="${db_password}" --single-transaction --quick "${db_name}" > "${dump_path}"
+            fi
+            ;;
+        sqlite3)
+            log "Skipping database backup (sqlite3 is not supported by this hook)"
+            return 0
+            ;;
+        *)
+            log "Skipping database backup (unsupported database type: ${db_type})"
+            return 0
+            ;;
+    esac
+
+    log "Saved ${engine_label} database backup: ${dump_path}"
+}
+
 run_occ() {
     local cmd="$1"
     log "Running: php occ ${cmd}"
@@ -50,11 +159,6 @@ if [ -d /var/www/html/apps-extra ]; then
     log "Saved apps-extra backup: ${BACKUP_DIR}/apps-extra.tar.gz"
 fi
 
-if command -v pg_dump >/dev/null 2>&1 && [ -n "${POSTGRES_HOST:-}" ] && [ -n "${POSTGRES_DB:-}" ] && [ -n "${POSTGRES_USER:-}" ] && [ -n "${POSTGRES_PASSWORD:-}" ]; then
-    PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump -h "${POSTGRES_HOST}" -U "${POSTGRES_USER}" "${POSTGRES_DB}" > "${BACKUP_DIR}/postgres.sql"
-    log "Saved database backup: ${BACKUP_DIR}/postgres.sql"
-else
-    log "Skipping database backup (pg_dump or PostgreSQL env vars not available)"
-fi
+backup_database
 
 log "Pre-upgrade checks completed successfully"

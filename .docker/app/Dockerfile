@@ -17,6 +17,7 @@ ENV LC_ALL=en_US.UTF-8
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
 RUN chmod uga+x /usr/local/bin/install-php-extensions && sync \
     && install-php-extensions \
-    bz2
+    bz2 \
+    imagick
 
 COPY config/php.ini /usr/local/etc/php/conf.d/

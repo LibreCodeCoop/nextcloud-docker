@@ -1,0 +1,27 @@
+networks:
+  internal:
+    name: internal
+
+services:
+  nextcloud-whiteboard-server:
+    image: ghcr.io/nextcloud-releases/whiteboard:stable
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NEXTCLOUD_URL=${NEXTCLOUD_URL}
+      - VIRTUAL_HOST=${WHITEBOARD_VIRTUAL_HOST}
+      - LETSENCRYPT_HOST=${WHITEBOARD_LETSENCRYPT_HOST}
+      - LETSENCRYPT_EMAIL=${WHITEBOARD_LETSENCRYPT_EMAIL}
+      - VIRTUAL_PORT=${WHITEBOARD_VIRTUAL_PORT}
+      - JWT_SECRET_KEY=${WHITEBOARD_JWT_SECRET_KEY}
+    networks:
+      - reverse-proxy
+    deploy:
+      resources:
+        limits:
+          cpus: "${WHITEBOARD_LIMIT_CPUS}"
+          memory: "${WHITEBOARD_LIMIT_MEMORY}"
+        reservations:
+          cpus: "${WHITEBOARD_RESERVATION_CPUS}"
+          memory: "${WHITEBOARD_RESERVATION_MEMORY}"

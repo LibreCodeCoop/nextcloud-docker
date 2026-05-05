@@ -7,7 +7,7 @@ services:
     image: ghcr.io/nextcloud-releases/whiteboard:stable
     restart: unless-stopped
     env_file:
-      - .env
+      - .env.whiteboard
     environment:
       - NEXTCLOUD_URL=${NEXTCLOUD_URL}
       - VIRTUAL_HOST=${WHITEBOARD_VIRTUAL_HOST}
@@ -17,6 +17,9 @@ services:
       - JWT_SECRET_KEY=${WHITEBOARD_JWT_SECRET_KEY}
     networks:
       - reverse-proxy
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
     deploy:
       resources:
         limits:

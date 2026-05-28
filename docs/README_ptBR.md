@@ -77,6 +77,39 @@ docker compose exec -u www-data app ./occ db:convert-filecache-bigint
 
 Você pode fazer isso usando variáveis de ambiente e criando um arquivo chamado `docker-compose.override.yml` para adicionar novos serviços.
 
+### Storage primário Garage S3
+
+Use `docker-compose-garages3.yml` quando quiser que o Nextcloud grave os arquivos em um bucket Garage S3 em vez do diretório local `data/`.
+
+O stack espera estes valores em `.env`:
+
+- `GARAGES3_BUCKET`
+- `GARAGES3_KEY`
+- `GARAGES3_KEY_ID`
+- `GARAGES3_SECRET`
+- `GARAGES3_HOSTNAME`, com padrão `host.docker.internal`
+- `GARAGES3_PORT`, com padrão `3900`
+- `GARAGES3_REGION`, com padrão `garage`
+
+Crie o bucket e a chave de acesso no Garage antes de iniciar o Nextcloud com este compose. `GARAGES3_KEY_ID` deve conter o access key ID do Garage usado pelo Nextcloud.
+
+O serviço Garage usa `garage/garage.toml`. Atualize `rpc_secret` antes de usar em ambiente real.
+
+Use `make up-garages3` para subir o Garage e `make bootstrap-garages3` para criar o bucket e a chave de acesso no Garage.
+O bootstrap atualiza `.env` com as credenciais geradas do Garage.
+Use `make setup-garages3` para executar a configuração completa e aguardar o Nextcloud reportar como instalado.
+O stack agora usa PostgreSQL 16. Se você já criou o volume do banco com uma versão major mais antiga, recrie ou migre esse volume uma vez antes de subir o compose atualizado.
+
+Para uma instalação local limpa, use `make reset-garages3`.
+Use `make setup-garages3` se quiser manter o estado local existente e apenas repetir as etapas de setup.
+
+Fluxo básico:
+
+1. Copie `.env.example` para `.env`, se necessário.
+2. Atualize `garage/garage.toml` e substitua o `rpc_secret` placeholder.
+3. Execute `make setup-garages3`.
+4. Abra a URL do Nextcloud e finalize a configuração inicial do admin, se ainda estiver pendente.
+
 ### PHP
 
 - Crie seu arquivo `.ini` na pasta `volumes/php/`. Exemplo: `volumes/php/xdebug.ini`

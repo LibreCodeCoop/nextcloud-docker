@@ -31,3 +31,32 @@ Também é necessário adicionar o dominio customizado de acordo com o que foi i
 ```
 
 Realizado as etapas acima, basta rodar o Makefile, o que pode ser feito executando o comando `make` na raiz do projeto:
+
+## Stack local com Garage S3
+
+Se você quiser testar o Nextcloud localmente usando o Garage como storage primário, use o compose dedicado:
+
+```bash
+cp .env.dist .env
+make reset-garages3
+```
+
+Se você quiser reaproveitar o estado local existente em vez de apagar tudo, use:
+
+```bash
+make setup-garages3
+```
+
+Essa variante:
+
+- expõe o Nextcloud em `http://localhost:8080`
+- sobe o Garage junto com o banco e o cron
+- usa o Garage em modo single-node para funcionar localmente
+- aplica automaticamente o layout do Garage para permitir bucket/key com um nó
+- cria automaticamente o bucket e a key do Garage
+- grava o access key ID em `GARAGES3_KEY_ID` e o secret em `GARAGES3_SECRET`
+- usa o arquivo `../volumes/nextcloud/config/s3.config.php` para o object store
+- `make reset-garages3` faz a limpeza e reinstala tudo do zero
+
+Se o `garage/garage.toml` ainda estiver com `rpc_secret` placeholder, o bootstrap substitui o valor antes de subir o daemon.
+Se você já tiver iniciado esse stack com PostgreSQL 12, precisará recriar ou migrar o volume de banco uma vez para o PostgreSQL 16.

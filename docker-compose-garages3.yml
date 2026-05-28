@@ -1,0 +1,121 @@
+networks:
+  reverse-proxy:
+    external: true
+    name: reverse-proxy
+  internal:
+    driver: bridge
+
+services:
+  db:
+    image: postgres:16
+    restart: always
+    volumes:
+      - ./volumes/postgres/data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-SECRET_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-nextcloud}
+      - POSTGRES_USER=${POSTGRES_USER:-nextcloud}
+    networks:
+      - internal
+
+  garage:
+    image: dxflrs/garage:v1.0.0
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./garage/garage.toml:/etc/garage.toml
+      - ./garage/meta:/var/lib/garage/meta
+      - ./garage/data:/var/lib/garage/data
+
+  app:
+    build:
+      context: .docker/app
+      args:
+        NEXTCLOUD_VERSION: ${NEXTCLOUD_VERSION:-stable-fpm}
+    restart: unless-stopped
+    volumes:
+      - ./volumes/nextcloud:/var/www/html
+      - ./app-hooks/post-installation:/docker-entrypoint-hooks.d/post-installation
+      - ./.docker/garages3.config.php:/var/www/html/config/garages3.config.php:ro
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-nextcloud}
+      - POSTGRES_USER=${POSTGRES_USER:-nextcloud}
+      - POSTGRES_PASSWORD
+      - POSTGRES_HOST=db
+      - NEXTCLOUD_ADMIN_USER
+      - NEXTCLOUD_ADMIN_PASSWORD
+      - NEXTCLOUD_ADMIN_EMAIL
+      - NEXTCLOUD_TRUSTED_DOMAINS
+      - SMTP_HOST
+      - SMTP_SECURE
+      - SMTP_PORT
+      - SMTP_AUTHTYPE
+      - SMTP_NAME
+      - SMTP_PASSWORD
+      - MAIL_FROM_ADDRESS
+      - MAIL_DOMAIN
+      - TZ
+      - GARAGES3_BUCKET
+      - GARAGES3_KEY_ID=${GARAGES3_KEY_ID:-${GARAGES3_KEY:-}}
+      - GARAGES3_SECRET=${GARAGES3_SECRET:-}
+      - GARAGES3_HOSTNAME=${GARAGES3_HOSTNAME:-host.docker.internal}
+      - GARAGES3_PORT=${GARAGES3_PORT:-3900}
+      - GARAGES3_REGION=${GARAGES3_REGION:-garage}
+      - GARAGES3_USE_SSL=${GARAGES3_USE_SSL:-0}
+      - GARAGES3_USE_PATH_STYLE=${GARAGES3_USE_PATH_STYLE:-1}
+      - GARAGES3_AUTOCREATE=${GARAGES3_AUTOCREATE:-1}
+      - GARAGES3_VERIFY_BUCKET_EXISTS=${GARAGES3_VERIFY_BUCKET_EXISTS:-1}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      - db
+      - garage
+    networks:
+      - internal
+
+  web:
+    build: .docker/web
+    restart: unless-stopped
+    volumes:
+      - ./volumes/nextcloud:/var/www/html:ro
+      - ./volumes/nginx/includes:/etc/nginx/conf.d/includes:rw
+    environment:
+      - VIRTUAL_HOST
+      - LETSENCRYPT_HOST
+      - LETSENCRYPT_EMAIL
+      - TZ
+    depends_on:
+      - app
+    networks:
+      - internal
+      - reverse-proxy
+
+  cron:
+    build:
+      context: .docker/app
+      args:
+        NEXTCLOUD_VERSION: ${NEXTCLOUD_VERSION:-stable-fpm}
+    restart: unless-stopped
+    environment:
+      - TZ
+      - GARAGES3_BUCKET
+      - GARAGES3_KEY_ID=${GARAGES3_KEY_ID:-${GARAGES3_KEY:-}}
+      - GARAGES3_SECRET=${GARAGES3_SECRET:-}
+      - GARAGES3_HOSTNAME=${GARAGES3_HOSTNAME:-host.docker.internal}
+      - GARAGES3_PORT=${GARAGES3_PORT:-3900}
+      - GARAGES3_REGION=${GARAGES3_REGION:-garage}
+      - GARAGES3_USE_SSL=${GARAGES3_USE_SSL:-0}
+      - GARAGES3_USE_PATH_STYLE=${GARAGES3_USE_PATH_STYLE:-1}
+      - GARAGES3_AUTOCREATE=${GARAGES3_AUTOCREATE:-1}
+      - GARAGES3_VERIFY_BUCKET_EXISTS=${GARAGES3_VERIFY_BUCKET_EXISTS:-1}
+    volumes:
+      - ./volumes/nextcloud:/var/www/html
+      - ./.docker/garages3.config.php:/var/www/html/config/garages3.config.php:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      - db
+      - garage
+    networks:
+      - internal
+    entrypoint: /cron.sh

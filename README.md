@@ -14,6 +14,7 @@ Languages avaliable: [pt-BR](docs/README_ptBR.md)
   - [Run Nextcloud](#run-nextcloud)
   - [Use a specific version of Nextcloud](#use-a-specific-version-of-nextcloud)
   - [Logs](#logs)
+  - [Nextcloud Talk](#talk)
 
 ## Setup of docker
 
@@ -171,3 +172,7 @@ You will see this message in the logs and other many upgrade messages:
 app_1      | 2020-04-28T19:49:38.568623133Z Initializing nextcloud 18.0.4.2 ...
 app_1      | 2020-04-28T19:49:38.577733913Z Upgrading nextcloud from 18.0.3.0 ...
 ```
+
+## Talk
+
+For setting up Nextcloud Talk with all services, see [here](https://github.com/LibreCodeCoop/nextcloud-docker-talk).

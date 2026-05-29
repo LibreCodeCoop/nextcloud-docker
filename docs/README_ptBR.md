@@ -10,7 +10,8 @@
   - [Execute o Nextcloud](#execute-o-nextcloud)
   - [Use uma versão específica do Nextcloud](#use-uma-versão-específica-do-nextcloud)
   - [Logs](#logs)
-
+  - [Nextcloud Talk](#talk)
+ 
 ## Configuração do Docker
 
 Você precisa ter, em seu servidor, o Docker instalado. A instalação pode ser feita com um script oficial, seguindo os seguintes passos:
@@ -120,3 +121,7 @@ Você verá esta mensagem nos logs e muitas outras mensagens de atualização:
 app_1      | 2020-04-28T19:49:38.568623133Z Inicializando o Nextcloud 18.0.4.2 ...
 app_1      | 2020-04-28T19:49:38.577733913Z Atualizando o Nextcloud a partir da versão 18.0.3.0 ...
 ```
+
+## Talk
+
+Para configurar o Nextcloud Talk e demais serviços necessários, veja [aqui](https://github.com/LibreCodeCoop/nextcloud-docker-talk).

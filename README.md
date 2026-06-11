@@ -125,7 +125,7 @@ services:
 services:
   app:
     volumes:
-      - ./volumes/php/pm.conf:/usr/local/etc/php-fpm.d/pm.conf
+      - ./volumes/php/pm.conf:/usr/local/etc/php-fpm.d/www2.conf
 ```
 - Create a file  `./volumes/php/pm.conf` with the following content (see references for tunning according your setup):
 ```yaml

@@ -11,6 +11,12 @@ db_user=${POSTGRES_USER:-nextcloud}
 db_password=${POSTGRES_PASSWORD:-}
 timestamp=$(date +%Y%m%d-%H%M%S)
 backup_file="${backup_dir}/nextcloud-db-${timestamp}.sql.gz"
+app_list_file="${backup_dir}/app_list.old"
+
+run_occ() {
+    echo "Running: php occ $*"
+    php occ "$@"
+}
 
 check_free_space() {
     local path=$1
@@ -29,6 +35,10 @@ check_free_space() {
 
 echo "Running pre-upgrade safety checks"
 mkdir -p "$backup_dir"
+
+run_occ maintenance:mode --on
+php occ app:list > "$app_list_file"
+echo "Saved active apps list to ${app_list_file}"
 
 check_free_space "$nextcloud_dir" "Nextcloud volume"
 check_free_space "$backup_dir" "Backup volume"

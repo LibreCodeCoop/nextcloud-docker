@@ -132,9 +132,13 @@ services:
 
 The upgrade hooks behave like this:
 
+- `pre-upgrade`: turns maintenance mode on
+- `pre-upgrade`: saves the active app list to `/backups/app_list.old`
 - `pre-upgrade`: checks free disk space on the Nextcloud volume and the backup volume
 - `pre-upgrade`: creates a compressed PostgreSQL dump at `/backups`
+- `post-upgrade`: saves the new app list to `/backups/app_list.new` and prints a diff when possible
 - `post-upgrade`: runs the extra `occ` commands needed after a major upgrade
+- `post-upgrade`: turns maintenance mode off at the end
 
 The following variables control the safety check and backup location:
 

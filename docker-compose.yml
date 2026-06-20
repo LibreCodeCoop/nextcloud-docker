@@ -6,6 +6,12 @@ networks:
     driver: bridge
 
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - internal
+
   app:
     build:
       context: .docker/app
@@ -13,7 +19,12 @@ services:
         NEXTCLOUD_VERSION: ${NEXTCLOUD_VERSION:-stable-fpm}
     volumes:
       - ./volumes/nextcloud:/var/www/html
+      - ./backups:/backups
+      - ./app-hooks/pre-installation:/docker-entrypoint-hooks.d/pre-installation
       - ./app-hooks/post-installation:/docker-entrypoint-hooks.d/post-installation
+      - ./app-hooks/pre-upgrade:/docker-entrypoint-hooks.d/pre-upgrade
+      - ./app-hooks/post-upgrade:/docker-entrypoint-hooks.d/post-upgrade
+      - ./app-hooks/before-starting:/docker-entrypoint-hooks.d/before-starting
     restart: unless-stopped
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-nextcloud}
@@ -33,6 +44,8 @@ services:
       - MAIL_FROM_ADDRESS
       - MAIL_DOMAIN
       - TZ
+    depends_on:
+      - redis
     networks:
       - internal
 
@@ -63,6 +76,8 @@ services:
       - TZ
     volumes:
       - ./volumes/nextcloud:/var/www/html
+    depends_on:
+      - redis
     networks:
       - internal
     entrypoint: /cron.sh

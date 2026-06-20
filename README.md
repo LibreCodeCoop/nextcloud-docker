@@ -10,6 +10,7 @@ Languages avaliable: [pt-BR](docs/README_ptBR.md)
   - [After setup](#after-setup)
   - [Custom setup](#custom-setup)
     - [Customize docker-compose content](#customize-docker-compose-content)
+    - [Nextcloud upgrade hooks](#nextcloud-upgrade-hooks)
     - [PHP](#php)
   - [Run Nextcloud](#run-nextcloud)
   - [Use a specific version of Nextcloud](#use-a-specific-version-of-nextcloud)
@@ -105,6 +106,42 @@ docker compose exec -u www-data app ./occ db:convert-filecache-bigint
 ### Customize docker-compose content
 
 You can do this using environments and creating a file called `docker-compose.override.yml` to add new services.
+
+### Redis
+
+The main compose files now include a `redis` service by default. This keeps the stack self-contained for Nextcloud installations that already use Redis in `config.php` and avoids depending on a host-specific external network.
+
+### Nextcloud upgrade hooks
+
+This repository mounts the official Nextcloud Docker hook directories so you can extend install and upgrade flows without touching the image entrypoint.
+
+The `app` service uses these mounts:
+
+```yaml
+services:
+  app:
+    volumes:
+      - ./volumes/nextcloud:/var/www/html
+      - ./backups:/backups
+      - ./app-hooks/pre-installation:/docker-entrypoint-hooks.d/pre-installation
+      - ./app-hooks/post-installation:/docker-entrypoint-hooks.d/post-installation
+      - ./app-hooks/pre-upgrade:/docker-entrypoint-hooks.d/pre-upgrade
+      - ./app-hooks/post-upgrade:/docker-entrypoint-hooks.d/post-upgrade
+      - ./app-hooks/before-starting:/docker-entrypoint-hooks.d/before-starting
+```
+
+The upgrade hooks behave like this:
+
+- `pre-upgrade`: checks free disk space on the Nextcloud volume and the backup volume
+- `pre-upgrade`: creates a compressed PostgreSQL dump at `/backups`
+- `post-upgrade`: runs the extra `occ` commands needed after a major upgrade
+
+The following variables control the safety check and backup location:
+
+- `NEXTCLOUD_BACKUP_DIR`, defaulting to `/backups`
+- `NEXTCLOUD_UPGRADE_MIN_FREE_MB`, defaulting to `2048`
+
+The `./backups` directory on the host must be writable by `www-data` inside the container. The recommended host-side ownership is `www-data:www-data` with mode `0755`.
 
 ### Garage S3 primary storage
 

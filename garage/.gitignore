@@ -1,0 +1,5 @@
+meta/*
+data/*
+!.gitignore
+!meta/.gitkeep
+!data/.gitkeep

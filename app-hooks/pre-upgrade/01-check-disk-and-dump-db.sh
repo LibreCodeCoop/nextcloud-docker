@@ -9,9 +9,20 @@ db_host=${POSTGRES_HOST:-postgres}
 db_name=${POSTGRES_DB:-nextcloud}
 db_user=${POSTGRES_USER:-nextcloud}
 db_password=${POSTGRES_PASSWORD:-}
-timestamp=$(date +%Y%m%d-%H%M%S)
-backup_file="${backup_dir}/nextcloud-db-${timestamp}.sql.gz"
+backup_file="${backup_dir}/nextcloud-db.sql.gz"
+backup_tmp_file="${backup_file}.tmp"
 app_list_file="${backup_dir}/app_list.old"
+maintenance_enabled=0
+
+cleanup() {
+    if [ "$maintenance_enabled" -eq 1 ]; then
+        php occ maintenance:mode --off >/dev/null 2>&1 || true
+    fi
+
+    rm -f "$backup_tmp_file"
+}
+
+trap cleanup EXIT
 
 run_occ() {
     echo "Running: php occ $*"
@@ -37,6 +48,7 @@ echo "Running pre-upgrade safety checks"
 mkdir -p "$backup_dir"
 
 run_occ maintenance:mode --on
+maintenance_enabled=1
 php occ app:list > "$app_list_file"
 echo "Saved active apps list to ${app_list_file}"
 
@@ -54,5 +66,7 @@ if [ -z "$db_password" ]; then
 fi
 
 echo "Creating PostgreSQL dump at ${backup_file}"
-PGPASSWORD="$db_password" pg_dump -h "$db_host" -U "$db_user" "$db_name" | gzip -9 > "$backup_file"
+PGPASSWORD="$db_password" pg_dump -h "$db_host" -U "$db_user" "$db_name" | gzip -9 > "$backup_tmp_file"
+mv "$backup_tmp_file" "$backup_file"
+rm -f "$backup_tmp_file"
 echo "Database dump completed successfully"

@@ -107,7 +107,7 @@ Os hooks de upgrade funcionam assim:
 - `pre-upgrade`: ativa o modo de manutenção
 - `pre-upgrade`: salva a lista de apps ativos em `/backups/app_list.old`
 - `pre-upgrade`: verifica o espaço livre no volume do Nextcloud e no volume de backup
-- `pre-upgrade`: cria um dump compactado do PostgreSQL em `/backups`
+- `pre-upgrade`: cria um dump compactado do PostgreSQL em `/backups/nextcloud-db.sql.gz`, substituindo o dump anterior
 - `post-upgrade`: salva a nova lista de apps em `/backups/app_list.new` e mostra o diff quando possível
 - `post-upgrade`: executa os comandos `occ` extras necessários após um upgrade maior
 - `post-upgrade`: desativa o modo de manutenção ao final

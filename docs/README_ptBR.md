@@ -177,6 +177,8 @@ docker compose -d
 
 Altere o valor de `NEXTCLOUD_VERSION` no arquivo `.env` e coloque o nome do rótulo que deseja usar. Verifique as tags disponíveis aqui: https://hub.docker.com/_/nextcloud/tags
 
+O workflow de build no GHCR lê `NEXTCLOUD_VERSION` de `.env.example` e publica as imagens de app e web com tag fixa `:latest`, para que ferramentas como o Watchtower acompanhem atualizações sem trocar o nome da imagem.
+
 Construa as imagens, derrube os contêineres e inicie-os novamente:
 
 ```bash

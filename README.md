@@ -228,6 +228,8 @@ docker compose -d
 
 Change the value of NEXTCLOUD_VERSION at `.env` file and put the tag name that you want to use. Check the availables tags here: https://hub.docker.com/_/nextcloud/tags
 
+The GHCR build workflow reads `NEXTCLOUD_VERSION` from `.env.example` and publishes the app and web images as static `:latest` tags so tools like Watchtower can track them reliably.
+
 Build the images, down the containers and get up again:
 
 ```bash

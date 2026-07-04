@@ -145,6 +145,8 @@ The following variables control the safety check and backup location:
 - `NEXTCLOUD_BACKUP_DIR`, defaulting to `/backups`
 - `NEXTCLOUD_UPGRADE_MIN_FREE_MB`, defaulting to `2048`
 
+Both upgrade hooks use `NEXTCLOUD_BACKUP_DIR` for the app list files and the database dump.
+
 This repository includes the `./backups` directory so Docker does not create it as a root-owned host path on a fresh checkout. It must still be writable by `www-data` inside the container. The recommended host-side ownership is `www-data:www-data` with mode `0755`.
 
 ### Garage S3 primary storage

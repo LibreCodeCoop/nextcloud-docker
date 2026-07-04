@@ -88,6 +88,7 @@ pushd "$work_dir" >/dev/null
 HOOK_TEST_LOG_FILE="$log_file" bash ./01-run-post-upgrade-commands.sh
 popd >/dev/null
 
+test -f "$backup_dir/app_list.new"
 grep -q "php occ db:add-missing-columns" "$log_file"
 grep -q "php occ maintenance:mode --off" "$log_file"
 

@@ -1,7 +1,7 @@
 COMPOSE ?= docker compose
 GARAGES3_COMPOSE_FILE ?= docker-compose-garages3.yml
 
-.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3
+.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test-hooks
 
 up-garages3:
 	$(COMPOSE) -f $(GARAGES3_COMPOSE_FILE) up -d garage
@@ -25,3 +25,6 @@ setup-garages3:
 	$(MAKE) bootstrap-garages3
 	$(MAKE) start-garages3
 	$(MAKE) wait-nextcloud-garages3
+
+test-hooks:
+	bash tests/test-hooks.sh

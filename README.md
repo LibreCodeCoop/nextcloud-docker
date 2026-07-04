@@ -10,6 +10,7 @@ Languages avaliable: [pt-BR](docs/README_ptBR.md)
   - [After setup](#after-setup)
   - [Custom setup](#custom-setup)
     - [Customize docker-compose content](#customize-docker-compose-content)
+    - [Nextcloud upgrade hooks](#nextcloud-upgrade-hooks)
     - [PHP](#php)
   - [Run Nextcloud](#run-nextcloud)
   - [Use a specific version of Nextcloud](#use-a-specific-version-of-nextcloud)
@@ -106,6 +107,48 @@ docker compose exec -u www-data app ./occ db:convert-filecache-bigint
 
 You can do this using environments and creating a file called `docker-compose.override.yml` to add new services.
 
+### Redis
+
+The main compose files now include a `redis` service by default. This keeps the stack self-contained for Nextcloud installations that already use Redis in `config.php` and avoids depending on a host-specific external network.
+
+### Nextcloud upgrade hooks
+
+This repository mounts the official Nextcloud Docker hook directories so you can extend install and upgrade flows without touching the image entrypoint.
+
+The `app` service uses these mounts:
+
+```yaml
+services:
+  app:
+    volumes:
+      - ./volumes/nextcloud:/var/www/html
+      - ./backups:/backups
+      - ./app-hooks/pre-installation:/docker-entrypoint-hooks.d/pre-installation
+      - ./app-hooks/post-installation:/docker-entrypoint-hooks.d/post-installation
+      - ./app-hooks/pre-upgrade:/docker-entrypoint-hooks.d/pre-upgrade
+      - ./app-hooks/post-upgrade:/docker-entrypoint-hooks.d/post-upgrade
+      - ./app-hooks/before-starting:/docker-entrypoint-hooks.d/before-starting
+```
+
+The upgrade hooks behave like this:
+
+- `pre-upgrade`: turns maintenance mode on
+- `pre-upgrade`: saves the active app list to `/backups/app_list.old`
+- `pre-upgrade`: checks free disk space on the Nextcloud volume and the backup volume
+- `pre-upgrade`: creates a compressed PostgreSQL dump at `/backups/nextcloud-db.sql.gz`, replacing the previous dump
+- `post-upgrade`: saves the new app list to `/backups/app_list.new` and prints a diff when possible
+- `post-upgrade`: runs the extra `occ` commands needed after a major upgrade
+- `post-upgrade`: turns maintenance mode off at the end
+
+The following variables control the safety check and backup location:
+
+- `NEXTCLOUD_BACKUP_DIR`, defaulting to `/backups`
+- `NEXTCLOUD_UPGRADE_MIN_FREE_MB`, defaulting to `2048`
+
+Both upgrade hooks use `NEXTCLOUD_BACKUP_DIR` for the app list files and the database dump.
+
+This repository includes the `./backups` directory so Docker does not create it as a root-owned host path on a fresh checkout. It must still be writable by `www-data` inside the container. The recommended host-side ownership is `www-data:www-data` with mode `0755`.
+
 ### Garage S3 primary storage
 
 Use `docker-compose-garages3.yml` when you want Nextcloud to store files in a Garage S3 bucket instead of the local `data/` directory.
@@ -184,6 +227,8 @@ docker compose -d
 ## Use a specific version of Nextcloud
 
 Change the value of NEXTCLOUD_VERSION at `.env` file and put the tag name that you want to use. Check the availables tags here: https://hub.docker.com/_/nextcloud/tags
+
+The GHCR build workflow reads `NEXTCLOUD_VERSION` from `.env.example` and publishes the app and web images as static `:latest` tags so tools like Watchtower can track them reliably.
 
 Build the images, down the containers and get up again:
 

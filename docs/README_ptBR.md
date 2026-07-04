@@ -117,7 +117,7 @@ As variáveis abaixo controlam a checagem e o diretório de backup:
 - `NEXTCLOUD_BACKUP_DIR`, com padrão `/backups`
 - `NEXTCLOUD_UPGRADE_MIN_FREE_MB`, com padrão `2048`
 
-O diretório `./backups` no host precisa ser gravável pelo `www-data` dentro do container. O recomendado é usar `www-data:www-data` com permissão `0755`.
+Este repositório já inclui o diretório `./backups`, então o Docker não cria um caminho root-owned em um checkout novo. Ele ainda precisa ser gravável pelo `www-data` dentro do container. O recomendado é usar `www-data:www-data` com permissão `0755`.
 
 ### Storage primário Garage S3
 

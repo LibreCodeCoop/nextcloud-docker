@@ -1,4 +1,6 @@
 /volumes
-/backups
+/backups/*
+!/backups/
+!/backups/.gitkeep
 .env
 docker-compose.override.yml

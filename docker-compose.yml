@@ -19,7 +19,7 @@ services:
         NEXTCLOUD_VERSION: ${NEXTCLOUD_VERSION:-stable-fpm}
     volumes:
       - ./volumes/nextcloud:/var/www/html
-      - ./backups:/backups
+      - ./volumes/backups:/backups
       - ./app-hooks/pre-installation:/docker-entrypoint-hooks.d/pre-installation
       - ./app-hooks/post-installation:/docker-entrypoint-hooks.d/post-installation
       - ./app-hooks/pre-upgrade:/docker-entrypoint-hooks.d/pre-upgrade

@@ -51,7 +51,7 @@ cp .env.example .env
 | [`VIRTUAL_HOST`](https://github.com/nginx-proxy/nginx-proxy#usage) | `web` | Seu domínio |
 | [`LETSENCRYPT_HOST`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Basic-usage.md#step-3---proxyed-containers) | `web` | Seu domínio |
 | [`LETSENCRYPT_EMAIL`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Let's-Encrypt-and-ACME.md#contact-address) | `web` | Seu email de administrador de sistema |
-| `NEXTCLOUD_TRUSTED_DOMAINS` | `app` | domínios separados por vírgula. O domínio `web` é obrigatório, adicione seu domínio junto com o domínio `web`. O domínio `web` é o domínio do serviço Nginx. |
+| `NEXTCLOUD_TRUSTED_DOMAINS` | `app` | domínios separados por espaço. Inclua o nome do serviço `web` e seu domínio público, por exemplo `web seudominio.tld`. |
 
 > **PS**: A Let's Encrypt só funciona em servidores quando os `VIRTUAL_HOST` e `LETSENCRYPT_HOST` têm um domínio público válido registrado em um servidor DNS. Não tente usá-lo em localhost, não funciona!
 
@@ -85,8 +85,8 @@ Use `docker-compose-garages3.yml` quando quiser que o Nextcloud grave os arquivo
 O stack espera estes valores em `.env`:
 
 - `GARAGES3_BUCKET`
-- `GARAGES3_KEY`
-- `GARAGES3_KEY_ID`
+- `GARAGES3_KEY`, o nome da chave do Garage criado pelo helper de bootstrap
+- `GARAGES3_KEY_ID`, o access key ID do Garage usado pelo Nextcloud
 - `GARAGES3_SECRET`
 - `GARAGES3_HOSTNAME`, com padrão `host.docker.internal`
 - `GARAGES3_PORT`, com padrão `3900`

@@ -62,7 +62,7 @@ cp .env.example .env
 | [`VIRTUAL_HOST`](https://github.com/nginx-proxy/nginx-proxy#usage) | `web` | Your domain |
 | [`LETSENCRYPT_HOST`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Basic-usage.md#step-3---proxyed-containers) | `web` | Your domain |
 | [`LETSENCRYPT_EMAIL`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Let's-Encrypt-and-ACME.md#contact-address) | `web` | Your sysadmin email |
-| `NEXTCLOUD_TRUSTED_DOMAINS` | `app` | domains separated by comma. The domain web is mandatory, add your domain together with whe domain web. The domain `web` is the domain of Nginx service. |
+| `NEXTCLOUD_TRUSTED_DOMAINS` | `app` | space-separated domains. Include the `web` service name and your public domain, for example `web yourdomain.tld`. |
 | `POSTGRES_DB` | `db` | PostgreSQL database name (default: nextcloud) |
 | `POSTGRES_USER` | `db` | PostgreSQL database user (default: nextcloud) |
 | `POSTGRES_PASSWORD` | `db` | PostgreSQL database user password |
@@ -156,8 +156,8 @@ Use `docker-compose-garages3.yml` when you want Nextcloud to store files in a Ga
 The stack expects these values in `.env`:
 
 - `GARAGES3_BUCKET`
-- `GARAGES3_KEY`
-- `GARAGES3_KEY_ID`
+- `GARAGES3_KEY`, the Garage key name created by the bootstrap helper
+- `GARAGES3_KEY_ID`, the Garage access key ID used by Nextcloud
 - `GARAGES3_SECRET`
 - `GARAGES3_HOSTNAME`, defaulting to `host.docker.internal`
 - `GARAGES3_PORT`, defaulting to `3900`

@@ -1,0 +1,40 @@
+ARG NEXTCLOUD_BASE_IMAGE=nextcloud:34-fpm
+
+FROM ${NEXTCLOUD_BASE_IMAGE}
+
+ARG NEXTCLOUD_DAILY_URL=https://download.nextcloud.com/server/daily/latest-master.tar.bz2
+
+RUN set -eux; \
+    curl -fsSL "${NEXTCLOUD_DAILY_URL}" -o /tmp/nextcloud.tar.bz2; \
+    curl -fsSL "${NEXTCLOUD_DAILY_URL}.sha512" -o /tmp/nextcloud.tar.bz2.sha512; \
+    cd /tmp; \
+    expected_sha512="$(awk '$2 == "latest-master.tar.bz2" { print $1 }' nextcloud.tar.bz2.sha512)"; \
+    test -n "${expected_sha512}"; \
+    echo "${expected_sha512}  nextcloud.tar.bz2" | sha512sum -c -; \
+    rm -rf /usr/src/nextcloud; \
+    tar -xjf nextcloud.tar.bz2 -C /usr/src/; \
+    nextcloud_major="$(php -r 'require "/usr/src/nextcloud/version.php"; echo $OC_Version[0];')"; \
+    test "${nextcloud_major}" = 35; \
+    rm -f /tmp/nextcloud.tar.bz2 /tmp/nextcloud.tar.bz2.sha512; \
+    rm -rf /usr/src/nextcloud/updater; \
+    mkdir -p /usr/src/nextcloud/data /usr/src/nextcloud/custom_apps; \
+    chmod +x /usr/src/nextcloud/occ
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        locales \
+        poppler-utils \
+        postgresql-client \
+    && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
+    && locale-gen \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
+ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+RUN chmod uga+x /usr/local/bin/install-php-extensions && sync \
+    && install-php-extensions bz2 imagick
+
+COPY config/php.ini /usr/local/etc/php/conf.d/

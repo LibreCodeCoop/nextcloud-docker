@@ -2,6 +2,10 @@ Languages avaliable: [pt-BR](docs/README_ptBR.md)
 
 # Nextcloud with SSL and Docker
 
+See [Container image naming and tags](docs/image-tagging.md) for the image
+components, release channels, runtime variants, immutable tags, and traceability
+metadata.
+
 - [Nextcloud with SSL and Docker](#nextcloud-with-ssl-and-docker)
   - [Setup of docker](#setup-of-docker)
   - [Setup of proxy](#setup-of-proxy)

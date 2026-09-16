@@ -237,6 +237,22 @@ docker compose build --pull
 docker compose up -d
 ```
 
+## Scan runtime images
+
+The image workflow scans the `app` and `web` images it builds. To run the same
+vulnerability policy locally, install Docker with Buildx, GNU Make, Bash, and
+Trivy `v0.74.0`, then run:
+
+```bash
+make scan-images
+```
+
+This builds the same app and web Dockerfiles for `linux/amd64`, using the
+`NEXTCLOUD_VERSION` from `.env.example`, then applies the shared policy in
+[`trivy.yaml`](trivy.yaml). The table reports are printed to the terminal and
+SARIF reports are written to `trivy-results/`. High and critical vulnerabilities
+fail the command only when a fix is available. An end-of-life base OS also fails.
+
 ## Logs
 
 If you want to see the logs, run:

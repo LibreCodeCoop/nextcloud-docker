@@ -4,3 +4,5 @@
 !/backups/.gitkeep
 .env
 docker-compose.override.yml
+.trivy-cache/
+trivy-results/

@@ -18,6 +18,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      security-events: write
 
     steps:
       - name: Checkout repository
@@ -52,8 +53,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .docker/app
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ github.event_name == 'push' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           push: ${{ github.event_name == 'push' }}
+          load: ${{ github.event_name == 'pull_request' }}
           build-args: |
             NEXTCLOUD_VERSION=${{ steps.nextcloud_version.outputs.value }}
           tags: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app:latest
@@ -64,8 +66,43 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .docker/web
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ github.event_name == 'push' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           push: ${{ github.event_name == 'push' }}
+          load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.74.0
+          cache: true
+
+      - name: Scan runtime images
+        env:
+          APP_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app:latest
+          WEB_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-web:latest
+        run: bash scripts/scan-images.sh "app=$APP_IMAGE" "web=$WEB_IMAGE"
+
+      - name: Upload app SARIF to GitHub code scanning
+        if: always() && github.event_name == 'push' && hashFiles('trivy-results/app.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results/app.sarif
+          category: trivy-app-image
+
+      - name: Upload web SARIF to GitHub code scanning
+        if: always() && github.event_name == 'push' && hashFiles('trivy-results/web.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results/web.sarif
+          category: trivy-web-image
+
+      - name: Save SARIF reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif-reports
+          path: trivy-results/*.sarif
+          if-no-files-found: warn

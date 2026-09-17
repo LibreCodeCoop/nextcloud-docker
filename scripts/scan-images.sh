@@ -58,7 +58,8 @@ for image_spec in "$@"; do
   fi
 
   printf '\nScanning %s for %s (%s), SARIF output\n' "$label" "$platform" "$image"
-  sarif_output="${report_dir}/${label}.sarif"
+  platform_suffix="${platform//\//-}"
+  sarif_output="${report_dir}/${label}-${platform_suffix}.sarif"
   if [[ "$trivy_bin" == "trivy.exe" ]] && command -v wslpath >/dev/null 2>&1; then
     sarif_output="$(wslpath -w "$sarif_output")"
   fi

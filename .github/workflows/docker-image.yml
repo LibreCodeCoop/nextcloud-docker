@@ -8,11 +8,48 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 env:
   REGISTRY: ghcr.io
 
 jobs:
-  build:
+  verify:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read Nextcloud version
+        id: nextcloud_version
+        run: |
+          version=$(grep -m1 '^NEXTCLOUD_VERSION=' .env.example | cut -d= -f2-)
+          if [ -z "$version" ]; then
+            echo "NEXTCLOUD_VERSION is missing from .env.example" >&2
+            exit 1
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build and scan runtime images
+        uses: ./.github/actions/build-and-scan
+        with:
+          nextcloud_version: ${{ steps.nextcloud_version.outputs.value }}
+
+      - name: Save SARIF reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif-reports
+          path: trivy-results/*.sarif
+          if-no-files-found: warn
+
+  publish:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     permissions:
@@ -38,102 +75,40 @@ jobs:
         id: repo_name
         run: echo "value=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Build and scan runtime images
+        uses: ./.github/actions/build-and-scan
         with:
-          platforms: arm64
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build app image (linux/amd64)
-        uses: docker/build-push-action@v6
-        with:
-          context: .docker/app
-          platforms: linux/amd64
-          load: true
-          build-args: |
-            NEXTCLOUD_VERSION=${{ steps.nextcloud_version.outputs.value }}
-          tags: scan/app:amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build app image (linux/arm64)
-        uses: docker/build-push-action@v6
-        with:
-          context: .docker/app
-          platforms: linux/arm64
-          load: true
-          build-args: |
-            NEXTCLOUD_VERSION=${{ steps.nextcloud_version.outputs.value }}
-          tags: scan/app:arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build web image (linux/amd64)
-        uses: docker/build-push-action@v6
-        with:
-          context: .docker/web
-          platforms: linux/amd64
-          load: true
-          tags: scan/web:amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build web image (linux/arm64)
-        uses: docker/build-push-action@v6
-        with:
-          context: .docker/web
-          platforms: linux/arm64
-          load: true
-          tags: scan/web:arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Install Trivy
-        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
-        with:
-          version: v0.74.0
-          cache: true
-
-      - name: Scan runtime images
-        run: |
-          bash scripts/scan-images.sh \
-            'app-amd64@linux/amd64=scan/app:amd64' \
-            'app-arm64@linux/arm64=scan/app:arm64' \
-            'web-amd64@linux/amd64=scan/web:amd64' \
-            'web-arm64@linux/arm64=scan/web:arm64'
+          nextcloud_version: ${{ steps.nextcloud_version.outputs.value }}
 
       - name: Upload app amd64 SARIF to GitHub code scanning
-        if: always() && github.event_name == 'push' && hashFiles('trivy-results/app-amd64.sarif') != ''
+        if: hashFiles('trivy-results/app-linux-amd64.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: trivy-results/app-amd64.sarif
+          sarif_file: trivy-results/app-linux-amd64.sarif
           category: trivy-app-linux-amd64
 
       - name: Upload app arm64 SARIF to GitHub code scanning
-        if: always() && github.event_name == 'push' && hashFiles('trivy-results/app-arm64.sarif') != ''
+        if: hashFiles('trivy-results/app-linux-arm64.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: trivy-results/app-arm64.sarif
+          sarif_file: trivy-results/app-linux-arm64.sarif
           category: trivy-app-linux-arm64
 
       - name: Upload web amd64 SARIF to GitHub code scanning
-        if: always() && github.event_name == 'push' && hashFiles('trivy-results/web-amd64.sarif') != ''
+        if: hashFiles('trivy-results/web-linux-amd64.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: trivy-results/web-amd64.sarif
+          sarif_file: trivy-results/web-linux-amd64.sarif
           category: trivy-web-linux-amd64
 
       - name: Upload web arm64 SARIF to GitHub code scanning
-        if: always() && github.event_name == 'push' && hashFiles('trivy-results/web-arm64.sarif') != ''
+        if: hashFiles('trivy-results/web-linux-arm64.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: trivy-results/web-arm64.sarif
+          sarif_file: trivy-results/web-linux-arm64.sarif
           category: trivy-web-linux-arm64
 
       - name: Save SARIF reports
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trivy-sarif-reports
@@ -141,7 +116,6 @@ jobs:
           if-no-files-found: warn
 
       - name: Log in to Container Registry
-        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -149,7 +123,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push scanned architecture images
-        if: github.event_name == 'push'
         env:
           APP_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app
           WEB_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-web
@@ -168,7 +141,6 @@ jobs:
           docker push "${WEB_IMAGE}:${IMAGE_VERSION}-arm64"
 
       - name: Publish multi-platform image tags
-        if: github.event_name == 'push'
         env:
           APP_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app
           WEB_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-web

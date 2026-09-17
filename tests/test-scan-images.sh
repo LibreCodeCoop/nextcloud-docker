@@ -62,28 +62,28 @@ export TRIVY_REPORT_DIR="$report_dir"
 export TRIVY_EXPECTED_PLATFORM=linux/amd64
 
 bash "$repo_root/scripts/scan-images.sh" \
-  'app-amd64@linux/amd64=example/app:amd64'
-test -f "$report_dir/app-amd64.sarif"
+  'app@linux/amd64=example/app:amd64'
+test -f "$report_dir/app-linux-amd64.sarif"
 grep -Fqx 'linux/amd64|table|example/app:amd64' "$log_file"
 grep -Fqx 'linux/amd64|sarif|example/app:amd64' "$log_file"
 
 export TRIVY_EXPECTED_PLATFORM=linux/arm64
 bash "$repo_root/scripts/scan-images.sh" \
-  'app-arm64@linux/arm64=example/app:arm64'
-test -f "$report_dir/app-arm64.sarif"
+  'app@linux/arm64=example/app:arm64'
+test -f "$report_dir/app-linux-arm64.sarif"
 grep -Fqx 'linux/arm64|table|example/app:arm64' "$log_file"
 grep -Fqx 'linux/arm64|sarif|example/app:arm64' "$log_file"
 
 if TRIVY_EXPECTED_PLATFORM=linux/arm64 TRIVY_FAIL_IMAGE=example/app:arm64 \
   bash "$repo_root/scripts/scan-images.sh" \
-    'app-arm64-failure@linux/arm64=example/app:arm64'; then
+    'app-failure@linux/arm64=example/app:arm64'; then
   printf 'expected a Trivy failure to make the helper fail\n' >&2
   exit 1
 fi
 
 if TRIVY_EXPECTED_PLATFORM=linux/amd64 \
   bash "$repo_root/scripts/scan-images.sh" \
-    'app-invalid@linux/s390x=example/app:amd64'; then
+    'app@linux/s390x=example/app:amd64'; then
   printf 'expected an unsupported architecture to be rejected\n' >&2
   exit 1
 fi

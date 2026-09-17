@@ -45,7 +45,7 @@ scan-images:
 	  docker buildx build --platform linux/arm64 --load --tag nextcloud-web:scan-arm64 \
 	    --file .docker/web/Dockerfile .docker/web; \
 	  bash scripts/scan-images.sh \
-	    'app-amd64@linux/amd64=nextcloud-app:scan-amd64' \
-	    'app-arm64@linux/arm64=nextcloud-app:scan-arm64' \
-	    'web-amd64@linux/amd64=nextcloud-web:scan-amd64' \
-	    'web-arm64@linux/arm64=nextcloud-web:scan-arm64'
+	    'app@linux/amd64=nextcloud-app:scan-amd64' \
+	    'app@linux/arm64=nextcloud-app:scan-arm64' \
+	    'web@linux/amd64=nextcloud-web:scan-amd64' \
+	    'web@linux/arm64=nextcloud-web:scan-arm64'

@@ -254,6 +254,9 @@ to the terminal and separate SARIF reports for each image and architecture are
 written to `trivy-results/`. High and critical vulnerabilities fail the command
 only when a fix is available. An end-of-life base OS also fails.
 
+The local arm64 builds require QEMU/binfmt support on non-arm64 hosts. The GitHub
+workflow sets up QEMU before building both architectures.
+
 ## Logs
 
 If you want to see the logs, run:

@@ -247,11 +247,12 @@ Trivy `v0.74.0`, then run:
 make scan-images
 ```
 
-This builds the same app and web Dockerfiles for `linux/amd64`, using the
-`NEXTCLOUD_VERSION` from `.env.example`, then applies the shared policy in
-[`trivy.yaml`](trivy.yaml). The table reports are printed to the terminal and
-SARIF reports are written to `trivy-results/`. High and critical vulnerabilities
-fail the command only when a fix is available. An end-of-life base OS also fails.
+This builds the app and web Dockerfiles for both `linux/amd64` and `linux/arm64`,
+using the `NEXTCLOUD_VERSION` from `.env.example`, then applies the shared policy
+in [`trivy.yaml`](trivy.yaml) to each architecture. The table reports are printed
+to the terminal and separate SARIF reports for each image and architecture are
+written to `trivy-results/`. High and critical vulnerabilities fail the command
+only when a fix is available. An end-of-life base OS also fails.
 
 ## Logs
 

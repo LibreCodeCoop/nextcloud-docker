@@ -2,7 +2,7 @@
 set -uo pipefail
 
 if [[ $# -eq 0 ]]; then
-  printf 'Usage: %s label=image [label=image ...]\n' "$0" >&2
+  printf 'Usage: %s label@linux/amd64=image [label@linux/arm64=image ...]\n' "$0" >&2
   exit 2
 fi
 
@@ -38,24 +38,31 @@ for image_spec in "$@"; do
     exit 2
   fi
 
-  label="${image_spec%%=*}"
+  label_platform="${image_spec%%=*}"
+  label="${label_platform%%@*}"
+  platform="${label_platform#*@}"
   image="${image_spec#*=}"
-  if [[ ! "$label" =~ ^[A-Za-z0-9_-]+$ || -z "$image" ]]; then
+
+  if [[ "$label_platform" != *@* || ! "$label" =~ ^[A-Za-z0-9_-]+$ || -z "$image" ]]; then
     printf 'Invalid image specification: %s\n' "$image_spec" >&2
     exit 2
   fi
+  if [[ "$platform" != linux/amd64 && "$platform" != linux/arm64 ]]; then
+    printf 'Unsupported platform in image specification: %s\n' "$image_spec" >&2
+    exit 2
+  fi
 
-  printf '\nScanning %s (%s), table output\n' "$label" "$image"
-  if ! "$trivy_bin" image --config "$trivy_config" --format table "$image"; then
+  printf '\nScanning %s for %s (%s), table output\n' "$label" "$platform" "$image"
+  if ! "$trivy_bin" image --config "$trivy_config" --platform "$platform" --format table "$image"; then
     scan_status=1
   fi
 
-  printf '\nScanning %s (%s), SARIF output\n' "$label" "$image"
+  printf '\nScanning %s for %s (%s), SARIF output\n' "$label" "$platform" "$image"
   sarif_output="${report_dir}/${label}.sarif"
   if [[ "$trivy_bin" == "trivy.exe" ]] && command -v wslpath >/dev/null 2>&1; then
     sarif_output="$(wslpath -w "$sarif_output")"
   fi
-  if ! "$trivy_bin" image --config "$trivy_config" --format sarif --output "$sarif_output" "$image"; then
+  if ! "$trivy_bin" image --config "$trivy_config" --platform "$platform" --format sarif --output "$sarif_output" "$image"; then
     scan_status=1
   fi
 done

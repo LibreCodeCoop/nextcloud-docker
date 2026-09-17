@@ -4,6 +4,7 @@ FROM nextcloud:${NEXTCLOUD_VERSION}
 
 RUN apt-get update \
     && apt-get install -y \
+        gzip \
         locales \
         postgresql-client \
         poppler-utils \

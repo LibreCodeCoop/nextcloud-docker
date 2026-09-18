@@ -1,11 +1,12 @@
 <?php
 
 $bucket = getenv('GARAGES3_BUCKET') ?: 'nextcloud';
-$key = getenv('GARAGES3_KEY');
+$key = getenv('GARAGES3_KEY_ID');
+$key = ($key === false || $key === '') ? getenv('GARAGES3_KEY') : $key;
 $secret = getenv('GARAGES3_SECRET');
 
 if ($key === false || $key === '' || $secret === false || $secret === '') {
-    throw new RuntimeException('GARAGES3_KEY and GARAGES3_SECRET must be set for Garage S3 primary storage.');
+    throw new RuntimeException('GARAGES3_KEY_ID (or legacy GARAGES3_KEY) and GARAGES3_SECRET must be set for Garage S3 primary storage.');
 }
 
 $CONFIG = [

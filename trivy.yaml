@@ -1,0 +1,14 @@
+# Shared vulnerability policy used by CI and `make scan-images`.
+scan:
+  scanners:
+    - vuln
+
+vulnerability:
+  ignore-unfixed: true
+
+severity:
+  - HIGH
+  - CRITICAL
+
+exit-code: 1
+exit-on-eol: 1

@@ -237,6 +237,15 @@ docker compose build --pull
 docker compose up -d
 ```
 
+## Vulnerability scanning
+
+Published `app` and `web` images are scanned for vulnerabilities. Contributors
+can run the scan locally with:
+
+```bash
+make scan-images
+```
+
 ## Logs
 
 If you want to see the logs, run:

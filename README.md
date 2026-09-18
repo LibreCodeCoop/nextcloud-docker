@@ -237,25 +237,14 @@ docker compose build --pull
 docker compose up -d
 ```
 
-## Scan runtime images
+## Vulnerability scanning
 
-The image workflow scans the `app` and `web` images it builds. To run the same
-vulnerability policy locally, install Docker with Buildx, GNU Make, Bash, and
-Trivy `v0.74.0`, then run:
+Published `app` and `web` images are scanned for vulnerabilities. Contributors
+can run the scan locally with:
 
 ```bash
 make scan-images
 ```
-
-This builds the app and web Dockerfiles for both `linux/amd64` and `linux/arm64`,
-using the `NEXTCLOUD_VERSION` from `.env.example`, then applies the shared policy
-in [`trivy.yaml`](trivy.yaml) to each architecture. The table reports are printed
-to the terminal and separate SARIF reports for each image and architecture are
-written to `trivy-results/`. High and critical vulnerabilities fail the command
-only when a fix is available. An end-of-life base OS also fails.
-
-The local arm64 builds require QEMU/binfmt support on non-arm64 hosts. The GitHub
-workflow sets up QEMU before building both architectures.
 
 ## Logs
 

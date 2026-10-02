@@ -79,7 +79,13 @@ RUN set -eux; \
 # --- Shared runtime tooling ---------------------------------------------------
 # Kept identical for every channel so stable and development images follow the
 # same maintenance and security rules.
+#
+# The upgrade step matters: the upstream Nextcloud tag is not rebuilt the moment
+# a security fix lands in Debian, so building straight from it can ship CVEs
+# that are already fixed. Refreshing the packages here keeps the runtime patched
+# without waiting for an upstream rebuild. trivy.yaml is what verifies it.
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
         gzip \
         locales \

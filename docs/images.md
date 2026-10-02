@@ -150,6 +150,22 @@ Reproducibility rules:
 * The `daily` channel only unpacks a tarball whose `.sha512` matches.
 * `sha-<commit>` tags must never be rebuilt from different inputs.
 
+### OS packages are refreshed at build time
+
+Both images run a package upgrade during the build (`apk upgrade --no-cache`
+for `web`, `apt-get upgrade -y` for `app`). This is deliberate:
+
+* The upstream tag is not rebuilt the moment a security fix lands in the
+  distribution repository, so an image built straight from `nginx:alpine` or
+  `nextcloud:<tag>` can ship CVEs that are already fixed.
+* `trivy.yaml` only ignores vulnerabilities **without** a published fix. A
+  fixed-but-not-installed CVE fails the scan, and rightly so.
+
+The consequence: building the same commit at different times can produce
+different OS package versions. That is accepted — the alternative is shipping
+known vulnerabilities. Immutable `sha-<commit>` tags are still immutable; they
+are just built once, from the package state at that moment.
+
 ## Testing and security
 
 Automated checks are part of the image lifecycle, not an extra step:

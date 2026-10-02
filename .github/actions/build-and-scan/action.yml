@@ -1,9 +1,19 @@
-name: Build and scan runtime images
-description: Build both runtime images for amd64 and arm64, then scan each image
+name: Build and scan a runtime image
+description: >-
+  Build one runtime image for linux/amd64 and linux/arm64 and scan both
+  architectures with Trivy. Works for any image defined in this repository,
+  so every build channel follows the same build, test and security rules.
 inputs:
-  nextcloud_version:
-    description: Nextcloud version passed to the app image build
+  label:
+    description: Short label used for the scan reports (e.g. app, web, app-dev).
     required: true
+  context:
+    description: Docker build context. The Dockerfile must be <context>/Dockerfile.
+    required: true
+  build-args:
+    description: Newline separated Docker build arguments.
+    required: false
+    default: ''
 runs:
   using: composite
   steps:
@@ -15,49 +25,29 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Build app image (linux/amd64)
+    - name: Build image for linux/amd64
       uses: docker/build-push-action@v6
       with:
-        context: .docker/app
+        context: ${{ inputs.context }}
+        file: ${{ inputs.context }}/Dockerfile
         platforms: linux/amd64
         load: true
-        build-args: |
-          NEXTCLOUD_VERSION=${{ inputs.nextcloud_version }}
-        tags: scan/app:amd64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        build-args: ${{ inputs.build-args }}
+        tags: scan/${{ inputs.label }}:amd64
+        cache-from: type=gha,scope=${{ inputs.label }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.label }}
 
-    - name: Build app image (linux/arm64)
+    - name: Build image for linux/arm64
       uses: docker/build-push-action@v6
       with:
-        context: .docker/app
+        context: ${{ inputs.context }}
+        file: ${{ inputs.context }}/Dockerfile
         platforms: linux/arm64
         load: true
-        build-args: |
-          NEXTCLOUD_VERSION=${{ inputs.nextcloud_version }}
-        tags: scan/app:arm64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Build web image (linux/amd64)
-      uses: docker/build-push-action@v6
-      with:
-        context: .docker/web
-        platforms: linux/amd64
-        load: true
-        tags: scan/web:amd64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-    - name: Build web image (linux/arm64)
-      uses: docker/build-push-action@v6
-      with:
-        context: .docker/web
-        platforms: linux/arm64
-        load: true
-        tags: scan/web:arm64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        build-args: ${{ inputs.build-args }}
+        tags: scan/${{ inputs.label }}:arm64
+        cache-from: type=gha,scope=${{ inputs.label }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.label }}
 
     - name: Install Trivy
       uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
@@ -65,11 +55,9 @@ runs:
         version: v0.74.0
         cache: true
 
-    - name: Scan runtime images
+    - name: Scan image
       shell: bash
       run: |
         bash scripts/scan-images.sh \
-          'app@linux/amd64=scan/app:amd64' \
-          'app@linux/arm64=scan/app:arm64' \
-          'web@linux/amd64=scan/web:amd64' \
-          'web@linux/arm64=scan/web:arm64'
+          '${{ inputs.label }}@linux/amd64=scan/${{ inputs.label }}:amd64' \
+          '${{ inputs.label }}@linux/arm64=scan/${{ inputs.label }}:arm64'

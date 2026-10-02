@@ -230,6 +230,25 @@ Change the value of NEXTCLOUD_VERSION at `.env` file and put the tag name that y
 
 The GHCR build workflow reads `NEXTCLOUD_VERSION` from `.env.example` and publishes the app and web images as static `:latest` tags so tools like Watchtower can track them reliably.
 
+Published tags, naming rules and the reuse policy for other repositories are documented in [docs/images.md](docs/images.md). In short:
+
+| Tag | Meaning |
+| --- | --- |
+| `latest` | latest stable build |
+| `nc-<major>` | stable build for a Nextcloud major (pin this in production) |
+| `sha-<commit>` | immutable build, traceable to a commit |
+| `dev` / `dev-<major>` | build of the current Nextcloud master |
+
+### Reuse these images in another environment
+
+The images published by this repository are meant to be extended, not copied:
+
+```dockerfile
+FROM ghcr.io/librecodecoop/nextcloud-docker-app:nc-34
+```
+
+See [docs/images.md](docs/images.md) for what belongs in this foundation and what must stay in the consuming environment.
+
 Build the images, down the containers and get up again:
 
 ```bash
@@ -239,12 +258,25 @@ docker compose up -d
 
 ## Vulnerability scanning
 
-Published `app` and `web` images are scanned for vulnerabilities. Contributors
-can run the scan locally with:
+Published `app` and `web` images are scanned for vulnerabilities on every build,
+for both architectures, before they are pushed. Contributors can run the scan
+locally with:
 
 ```bash
 make scan-images
 ```
+
+The repository regression tests are run with:
+
+```bash
+make test
+```
+
+## Contributing
+
+Read [AGENTS.md](AGENTS.md) before opening a pull request. It covers the hard
+rules for the image foundation, how to verify a change, and the roadmap of the
+work tracked in issue [#47](https://github.com/LibreCodeCoop/nextcloud-docker/issues/47).
 
 ## Logs
 

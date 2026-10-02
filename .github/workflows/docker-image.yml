@@ -15,103 +15,154 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  verify:
-    if: github.event_name == 'pull_request'
+  # Shared build metadata: one place that resolves the Nextcloud version, the
+  # image naming rules and the traceability values used by every build channel.
+  meta:
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-
+    outputs:
+      nextcloud_version: ${{ steps.version.outputs.value }}
+      nextcloud_major: ${{ steps.version.outputs.major }}
+      repo_name: ${{ steps.repo_name.outputs.value }}
+      image_version: ${{ steps.image_version.outputs.value }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Read Nextcloud version
-        id: nextcloud_version
+        id: version
         run: |
+          set -euo pipefail
           version=$(grep -m1 '^NEXTCLOUD_VERSION=' .env.example | cut -d= -f2-)
           if [ -z "$version" ]; then
             echo "NEXTCLOUD_VERSION is missing from .env.example" >&2
             exit 1
           fi
           echo "value=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Build and scan runtime images
-        uses: ./.github/actions/build-and-scan
-        with:
-          nextcloud_version: ${{ steps.nextcloud_version.outputs.value }}
-
-      - name: Save SARIF reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-sarif-reports
-          path: trivy-results/*.sarif
-          if-no-files-found: warn
-
-  publish:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write
-      security-events: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Read Nextcloud version
-        id: nextcloud_version
-        run: |
-          version=$(grep -m1 '^NEXTCLOUD_VERSION=' .env.example | cut -d= -f2-)
-          if [ -z "$version" ]; then
-            echo "NEXTCLOUD_VERSION is missing from .env.example" >&2
-            exit 1
-          fi
-          echo "value=$version" >> "$GITHUB_OUTPUT"
+          # "34-fpm" -> "34"; rolling tags such as "stable-fpm" have no major.
+          case "$version" in
+            [0-9]*) echo "major=${version%%-*}" >> "$GITHUB_OUTPUT" ;;
+            *)      echo "major=" >> "$GITHUB_OUTPUT" ;;
+          esac
 
       - name: Normalize repository name
         id: repo_name
         run: echo "value=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and scan runtime images
+      - name: Resolve image version
+        id: image_version
+        run: echo "value=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+  verify:
+    if: github.event_name == 'pull_request'
+    needs: meta
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: app
+            context: .docker/app
+          - label: web
+            context: .docker/web
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve build arguments
+        id: build_args
+        env:
+          NEXTCLOUD_VERSION: ${{ needs.meta.outputs.nextcloud_version }}
+          NEXTCLOUD_MAJOR: ${{ needs.meta.outputs.nextcloud_major }}
+          VCS_REF: ${{ github.sha }}
+          EVENT_TIMESTAMP: ${{ github.event.pull_request.updated_at }}
+          LABEL: ${{ matrix.label }}
+        run: |
+          set -euo pipefail
+          build_date="${EVENT_TIMESTAMP:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+          if [ "${LABEL}" != "app" ]; then
+            echo "value=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "value<<EOF"
+            echo "NEXTCLOUD_VERSION=${NEXTCLOUD_VERSION}"
+            echo "NEXTCLOUD_MAJOR=${NEXTCLOUD_MAJOR}"
+            echo "VCS_REF=${VCS_REF}"
+            echo "BUILD_DATE=${build_date}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and scan runtime image
         uses: ./.github/actions/build-and-scan
         with:
-          nextcloud_version: ${{ steps.nextcloud_version.outputs.value }}
-
-      - name: Upload app amd64 SARIF to GitHub code scanning
-        if: hashFiles('trivy-results/app-linux-amd64.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results/app-linux-amd64.sarif
-          category: trivy-app-linux-amd64
-
-      - name: Upload app arm64 SARIF to GitHub code scanning
-        if: hashFiles('trivy-results/app-linux-arm64.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results/app-linux-arm64.sarif
-          category: trivy-app-linux-arm64
-
-      - name: Upload web amd64 SARIF to GitHub code scanning
-        if: hashFiles('trivy-results/web-linux-amd64.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results/web-linux-amd64.sarif
-          category: trivy-web-linux-amd64
-
-      - name: Upload web arm64 SARIF to GitHub code scanning
-        if: hashFiles('trivy-results/web-linux-arm64.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results/web-linux-arm64.sarif
-          category: trivy-web-linux-arm64
+          label: ${{ matrix.label }}
+          context: ${{ matrix.context }}
+          build-args: ${{ steps.build_args.outputs.value }}
 
       - name: Save SARIF reports
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-sarif-reports
+          name: trivy-sarif-${{ matrix.label }}
+          path: trivy-results/*.sarif
+          if-no-files-found: warn
+
+  publish:
+    if: github.event_name == 'push'
+    needs: meta
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: app
+            context: .docker/app
+          - label: web
+            context: .docker/web
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve build arguments
+        id: build_args
+        env:
+          NEXTCLOUD_VERSION: ${{ needs.meta.outputs.nextcloud_version }}
+          NEXTCLOUD_MAJOR: ${{ needs.meta.outputs.nextcloud_major }}
+          VCS_REF: ${{ github.sha }}
+          EVENT_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
+          LABEL: ${{ matrix.label }}
+        run: |
+          set -euo pipefail
+          build_date="${EVENT_TIMESTAMP:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+          if [ "${LABEL}" != "app" ]; then
+            echo "value=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "value<<EOF"
+            echo "NEXTCLOUD_VERSION=${NEXTCLOUD_VERSION}"
+            echo "NEXTCLOUD_MAJOR=${NEXTCLOUD_MAJOR}"
+            echo "VCS_REF=${VCS_REF}"
+            echo "BUILD_DATE=${build_date}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and scan runtime image
+        uses: ./.github/actions/build-and-scan
+        with:
+          label: ${{ matrix.label }}
+          context: ${{ matrix.context }}
+          build-args: ${{ steps.build_args.outputs.value }}
+
+      - name: Save SARIF reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif-${{ matrix.label }}
           path: trivy-results/*.sarif
           if-no-files-found: warn
 
@@ -124,36 +175,63 @@ jobs:
 
       - name: Push scanned architecture images
         env:
-          APP_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app
-          WEB_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-web
-          IMAGE_VERSION: sha-${{ github.sha }}
+          IMAGE: ${{ env.REGISTRY }}/${{ needs.meta.outputs.repo_name }}-${{ matrix.label }}
+          IMAGE_VERSION: ${{ needs.meta.outputs.image_version }}
         run: |
           set -euo pipefail
 
-          docker tag scan/app:amd64 "${APP_IMAGE}:${IMAGE_VERSION}-amd64"
-          docker tag scan/app:arm64 "${APP_IMAGE}:${IMAGE_VERSION}-arm64"
-          docker tag scan/web:amd64 "${WEB_IMAGE}:${IMAGE_VERSION}-amd64"
-          docker tag scan/web:arm64 "${WEB_IMAGE}:${IMAGE_VERSION}-arm64"
-
-          docker push "${APP_IMAGE}:${IMAGE_VERSION}-amd64"
-          docker push "${APP_IMAGE}:${IMAGE_VERSION}-arm64"
-          docker push "${WEB_IMAGE}:${IMAGE_VERSION}-amd64"
-          docker push "${WEB_IMAGE}:${IMAGE_VERSION}-arm64"
+          docker tag scan/${{ matrix.label }}:amd64 "${IMAGE}:${IMAGE_VERSION}-amd64"
+          docker tag scan/${{ matrix.label }}:arm64 "${IMAGE}:${IMAGE_VERSION}-arm64"
+          docker push "${IMAGE}:${IMAGE_VERSION}-amd64"
+          docker push "${IMAGE}:${IMAGE_VERSION}-arm64"
 
       - name: Publish multi-platform image tags
         env:
-          APP_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app
-          WEB_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-web
-          IMAGE_VERSION: sha-${{ github.sha }}
+          IMAGE: ${{ env.REGISTRY }}/${{ needs.meta.outputs.repo_name }}-${{ matrix.label }}
+          IMAGE_VERSION: ${{ needs.meta.outputs.image_version }}
+          NEXTCLOUD_MAJOR: ${{ needs.meta.outputs.nextcloud_major }}
         run: |
           set -euo pipefail
 
-          docker buildx imagetools create \
-            --tag "${APP_IMAGE}:latest" \
-            "${APP_IMAGE}:${IMAGE_VERSION}-amd64" \
-            "${APP_IMAGE}:${IMAGE_VERSION}-arm64"
+          set -- "${IMAGE}:latest" "${IMAGE}:${IMAGE_VERSION}"
+          if [ -n "${NEXTCLOUD_MAJOR}" ]; then
+            set -- "$@" "${IMAGE}:nc-${NEXTCLOUD_MAJOR}"
+          fi
+
+          args=()
+          for tag in "$@"; do
+            args+=(--tag "$tag")
+          done
 
           docker buildx imagetools create \
-            --tag "${WEB_IMAGE}:latest" \
-            "${WEB_IMAGE}:${IMAGE_VERSION}-amd64" \
-            "${WEB_IMAGE}:${IMAGE_VERSION}-arm64"
+            "${args[@]}" \
+            "${IMAGE}:${IMAGE_VERSION}-amd64" \
+            "${IMAGE}:${IMAGE_VERSION}-arm64"
+
+      - name: Collect SARIF reports
+        id: sarif
+        env:
+          LABEL: ${{ matrix.label }}
+        run: |
+          set -euo pipefail
+          for arch in amd64 arm64; do
+            if [ -f "trivy-results/${LABEL}-linux-${arch}.sarif" ]; then
+              echo "${arch}=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "${arch}=false" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
+      - name: Upload ${{ matrix.label }} amd64 SARIF to GitHub code scanning
+        if: steps.sarif.outputs.amd64 == 'true'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results/${{ matrix.label }}-linux-amd64.sarif
+          category: trivy-${{ matrix.label }}-linux-amd64
+
+      - name: Upload ${{ matrix.label }} arm64 SARIF to GitHub code scanning
+        if: steps.sarif.outputs.arm64 == 'true'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results/${{ matrix.label }}-linux-arm64.sarif
+          category: trivy-${{ matrix.label }}-linux-arm64

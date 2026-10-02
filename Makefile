@@ -1,7 +1,22 @@
 COMPOSE ?= docker compose
 GARAGES3_COMPOSE_FILE ?= docker-compose-garages3.yml
 
-.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test-hooks test-scan-images scan-images
+.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test test-hooks test-scan-images scan-images build-dev
+
+# Build the development (daily) channel of the app image locally.
+# See docs/images.md for the build channels and the tagging rules.
+DEV_NEXTCLOUD_MAJOR ?= 35
+DEV_BASE_IMAGE ?= 34-fpm
+
+build-dev:
+	docker buildx build --load \
+	  --build-arg "NEXTCLOUD_VERSION=$(DEV_BASE_IMAGE)" \
+	  --build-arg NEXTCLOUD_SOURCE=daily \
+	  --build-arg "NEXTCLOUD_MAJOR=$(DEV_NEXTCLOUD_MAJOR)" \
+	  --tag nextcloud-app:dev-$(DEV_NEXTCLOUD_MAJOR) \
+	  --file .docker/app/Dockerfile .docker/app
+
+test: test-hooks test-scan-images
 
 up-garages3:
 	$(COMPOSE) -f $(GARAGES3_COMPOSE_FILE) up -d garage
@@ -28,6 +43,7 @@ setup-garages3:
 
 test-hooks:
 	bash tests/test-hooks.sh
+
 
 test-scan-images:
 	bash tests/test-scan-images.sh

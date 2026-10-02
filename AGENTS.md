@@ -58,8 +58,8 @@ docs/images.md                  image policy (naming, tags, reuse)
    make test
    ```
 
-4. If you touched `.docker/app` or `.docker/web`, also run the smoke test and
-   the scan, and attach the output to the pull request:
+4. If you touched `.docker/app`, `.docker/web` or the build workflows, also run
+   the smoke test and the scan, and attach the output to the pull request:
 
    ```bash
    make smoke-test      # boots postgres + app + web, asserts install/HTTP/labels
@@ -68,7 +68,9 @@ docs/images.md                  image policy (naming, tags, reuse)
    ```
 
    A green build only proves an image compiles. `make smoke-test` proves it
-   boots, so it is the check that matters most after a Dockerfile change.
+   boots, so it is the check that matters most after a Dockerfile change. In CI
+   the smoke test is what gates publication, on every run including the
+   scheduled ones.
 5. Update `docs/images.md` in the same pull request whenever you change naming,
    tagging, build channels or labels. Documentation is part of the change, not
    a follow-up.
@@ -86,16 +88,14 @@ It is delivered as increments:
 * [x] One reusable build-and-scan action used by every build channel.
 * [x] Scan development images with the same policy as stable images.
 * [x] Document naming, tagging and reuse rules.
-* [x] Image smoke tests in CI (`tests/smoke-test.sh`): boots postgres + app +
-      web, asserts the install completes, `occ status` reports it, `status.php`
-      answers and the OCI labels are present, for both channels.
+* [x] Image smoke tests: boots postgres + app + web, asserts the install
+      completes, `occ status` reports it, `status.php` answers and the OCI
+      labels are present, for both channels. Wired as a gate on publication.
+* [x] Scheduled rebuild and republish (weekly, both channels) so the published
+      images pick up distribution security fixes without a code change.
+      Scheduled runs use internal `build-*` per-architecture tags and only
+      refresh the rolling tags, so `sha-<commit>` stays immutable.
 * [ ] Generate an SBOM per published image and attach it to the release.
-* [ ] Scheduled rebuild and republish (e.g. weekly) so the published images
-      pick up distribution security fixes without a code change. Needed to
-      stop recurring scan failures caused by stale base packages. Must not
-      rewrite `sha-<commit>` tags: scheduled runs need their own intermediate
-      tags and only refresh `latest` / `nc-<major>` / `dev*`. Record the rule
-      in `docs/images.md` before enabling it.
 * [ ] Dependabot/Renovate updates for `PHP_EXTENSION_INSTALLER_VERSION` and the
       GitHub Actions used here.
 * [ ] Deployment recipes repository that composes these images for small hosts

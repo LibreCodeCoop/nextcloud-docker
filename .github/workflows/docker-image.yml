@@ -1,5 +1,17 @@
 name: Build and Push Docker Image
 
+# One lifecycle for the runtime images: build -> scan -> boot test -> publish.
+#
+# Triggers:
+#   * pull_request: build + scan + boot test, nothing is published
+#   * push to main: build + scan + boot test + publish
+#   * weekly schedule: rebuild + scan + boot test + publish, so the published
+#     images pick up distribution security fixes without a code change
+#
+# Scheduled runs deliberately do NOT rewrite `sha-<commit>` tags: those are
+# immutable by contract (see docs/images.md). They use internal `build-*` tags
+# for the per-architecture manifests and only refresh the rolling tags.
+
 on:
   push:
     branches:
@@ -7,6 +19,8 @@ on:
   pull_request:
     branches:
       - main
+  schedule:
+    - cron: '23 4 * * 1'
 
 permissions:
   contents: read
@@ -23,7 +37,8 @@ jobs:
       nextcloud_version: ${{ steps.version.outputs.value }}
       nextcloud_major: ${{ steps.version.outputs.major }}
       repo_name: ${{ steps.repo_name.outputs.value }}
-      image_version: ${{ steps.image_version.outputs.value }}
+      per_arch_prefix: ${{ steps.tags.outputs.per_arch_prefix }}
+      immutable_tag: ${{ steps.tags.outputs.immutable_tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,9 +63,84 @@ jobs:
         id: repo_name
         run: echo "value=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
 
-      - name: Resolve image version
-        id: image_version
-        run: echo "value=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+      - name: Resolve image tags
+        id: tags
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            # A scheduled rebuild re-reads the distribution repositories, so it
+            # produces a different image for the same commit. Publishing that as
+            # `sha-<commit>` would break the documented immutability contract,
+            # so scheduled runs get internal per-architecture tags and only
+            # refresh the rolling tags.
+            echo "per_arch_prefix=build-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+            echo "immutable_tag=" >> "$GITHUB_OUTPUT"
+          else
+            echo "per_arch_prefix=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+            echo "immutable_tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+  # A green build only proves an image compiles. This boots the real stack
+  # (postgres + app + web) and asserts Nextcloud installs, `occ status` reports
+  # it, the HTTP front-end answers and the traceability labels are present.
+  # `publish` only runs when this passes.
+  smoke:
+    needs: meta
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve build parameters
+        id: params
+        env:
+          NEXTCLOUD_VERSION: ${{ needs.meta.outputs.nextcloud_version }}
+          NEXTCLOUD_MAJOR: ${{ needs.meta.outputs.nextcloud_major }}
+          EVENT_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
+        run: |
+          set -euo pipefail
+          {
+            echo "build_date=${EVENT_TIMESTAMP:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build app image
+        env:
+          NEXTCLOUD_VERSION: ${{ needs.meta.outputs.nextcloud_version }}
+          NEXTCLOUD_MAJOR: ${{ needs.meta.outputs.nextcloud_major }}
+          BUILD_DATE: ${{ steps.params.outputs.build_date }}
+        run: |
+          set -euo pipefail
+          args=(
+            --build-arg "NEXTCLOUD_VERSION=${NEXTCLOUD_VERSION}"
+            --build-arg "NEXTCLOUD_SOURCE=release"
+            --build-arg "VCS_REF=${GITHUB_SHA}"
+            --build-arg "BUILD_DATE=${BUILD_DATE}"
+            --tag smoke/app
+          )
+          if [ -n "${NEXTCLOUD_MAJOR}" ]; then
+            args+=(--build-arg "NEXTCLOUD_MAJOR=${NEXTCLOUD_MAJOR}")
+          fi
+          docker build "${args[@]}" .docker/app
+
+      - name: Build web image
+        run: docker build --tag smoke/web .docker/web
+
+      - name: Boot the stack and assert it works
+        env:
+          NEXTCLOUD_MAJOR: ${{ needs.meta.outputs.nextcloud_major }}
+        run: |
+          set -euo pipefail
+          args=(
+            --app-image smoke/app
+            --web-image smoke/web
+            --source release
+          )
+          if [ -n "${NEXTCLOUD_MAJOR}" ]; then
+            args+=(--major "${NEXTCLOUD_MAJOR}")
+          fi
+          bash tests/smoke-test.sh "${args[@]}"
 
   verify:
     if: github.event_name == 'pull_request'
@@ -110,8 +200,8 @@ jobs:
           if-no-files-found: warn
 
   publish:
-    if: github.event_name == 'push'
-    needs: meta
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    needs: [meta, smoke]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -178,26 +268,30 @@ jobs:
       - name: Push scanned architecture images
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ needs.meta.outputs.repo_name }}-${{ matrix.label }}
-          IMAGE_VERSION: ${{ needs.meta.outputs.image_version }}
+          PREFIX: ${{ needs.meta.outputs.per_arch_prefix }}
         run: |
           set -euo pipefail
 
-          docker tag scan/${{ matrix.label }}:amd64 "${IMAGE}:${IMAGE_VERSION}-amd64"
-          docker tag scan/${{ matrix.label }}:arm64 "${IMAGE}:${IMAGE_VERSION}-arm64"
-          docker push "${IMAGE}:${IMAGE_VERSION}-amd64"
-          docker push "${IMAGE}:${IMAGE_VERSION}-arm64"
+          docker tag scan/${{ matrix.label }}:amd64 "${IMAGE}:${PREFIX}-amd64"
+          docker tag scan/${{ matrix.label }}:arm64 "${IMAGE}:${PREFIX}-arm64"
+          docker push "${IMAGE}:${PREFIX}-amd64"
+          docker push "${IMAGE}:${PREFIX}-arm64"
 
       - name: Publish multi-platform image tags
         env:
           IMAGE: ${{ env.REGISTRY }}/${{ needs.meta.outputs.repo_name }}-${{ matrix.label }}
-          IMAGE_VERSION: ${{ needs.meta.outputs.image_version }}
+          PREFIX: ${{ needs.meta.outputs.per_arch_prefix }}
+          IMMUTABLE_TAG: ${{ needs.meta.outputs.immutable_tag }}
           NEXTCLOUD_MAJOR: ${{ needs.meta.outputs.nextcloud_major }}
         run: |
           set -euo pipefail
 
-          set -- "${IMAGE}:latest" "${IMAGE}:${IMAGE_VERSION}"
+          set -- "${IMAGE}:latest"
           if [ -n "${NEXTCLOUD_MAJOR}" ]; then
             set -- "$@" "${IMAGE}:nc-${NEXTCLOUD_MAJOR}"
+          fi
+          if [ -n "${IMMUTABLE_TAG}" ]; then
+            set -- "$@" "${IMAGE}:${IMMUTABLE_TAG}"
           fi
 
           args=()
@@ -207,8 +301,8 @@ jobs:
 
           docker buildx imagetools create \
             "${args[@]}" \
-            "${IMAGE}:${IMAGE_VERSION}-amd64" \
-            "${IMAGE}:${IMAGE_VERSION}-arm64"
+            "${IMAGE}:${PREFIX}-amd64" \
+            "${IMAGE}:${PREFIX}-arm64"
 
       - name: Collect SARIF reports
         id: sarif

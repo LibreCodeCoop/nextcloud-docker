@@ -64,7 +64,14 @@ jobs:
           echo "major=${INPUT_MAJOR:-35}" >> "$GITHUB_OUTPUT"
           echo "base=${INPUT_BASE:-34-fpm}" >> "$GITHUB_OUTPUT"
           echo "repo_name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-          echo "version=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          # Scheduled rebuilds re-read the daily tarball and the distribution
+          # repositories, so they must not rewrite the immutable `sha-<commit>`
+          # tags. They use internal `build-*` per-architecture tags instead.
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            echo "version=build-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          fi
           echo "build_date=${EVENT_TIMESTAMP:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" >> "$GITHUB_OUTPUT"
 
       - name: Build and scan development image
@@ -86,6 +93,23 @@ jobs:
           name: trivy-sarif-app-dev
           path: trivy-results/*.sarif
           if-no-files-found: warn
+
+      # Gate the publication on a boot test of the real development image: the
+      # image scanned above is the one handed to the smoke test, so a daily
+      # build that compiles but does not boot never reaches the registry.
+      - name: Build web image
+        run: docker build --tag smoke/web .docker/web
+
+      - name: Smoke test the development image
+        env:
+          MAJOR: ${{ steps.params.outputs.major }}
+        run: |
+          set -euo pipefail
+          args=(--app-image scan/app-dev:amd64 --web-image smoke/web --source daily)
+          if [ -n "${MAJOR}" ]; then
+            args+=(--major "${MAJOR}")
+          fi
+          bash tests/smoke-test.sh "${args[@]}"
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3

@@ -289,8 +289,18 @@ make smoke-test      # stable channel
 make smoke-test-dev  # development (daily) channel
 ```
 
-It needs Docker and takes a few minutes. The same check runs in CI on every
-change to `.docker/**`. See `tests/smoke-test.sh` for the full option list.
+It needs Docker and takes a few minutes. In CI the same check is what gates
+publication: an image that does not boot never reaches the registry, on any
+run, including the scheduled ones. See `tests/smoke-test.sh` for the full
+option list.
+
+## Scheduled image refresh
+
+Both channels are rebuilt and republished weekly so the published images pick
+up distribution security fixes without a code change. Scheduled runs refresh
+the rolling tags (`latest`, `nc-<major>`, `dev*`) and never rewrite
+`sha-<commit>`, which is immutable by contract. See
+[docs/images.md](docs/images.md).
 
 ## Contributing
 

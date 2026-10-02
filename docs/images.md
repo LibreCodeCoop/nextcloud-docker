@@ -78,18 +78,34 @@ reports and the published tags always agree.
 | `dev` | Latest development build (Nextcloud master) | `:dev` |
 | `dev-<major>` | Development build for an in-progress major | `:dev-35` |
 | `<major>` | **Deprecated alias** of `dev-<major>` | `:35` |
+| `build-<run_id>-<arch>` | Internal per-architecture tag of a scheduled rebuild | `:build-37007247675-amd64` |
 
 Rules:
 
 1. Every published tag is a multi-arch manifest list (`linux/amd64` +
    `linux/arm64`) unless its name ends in `-amd64` / `-arm64`.
-2. `sha-*` tags are immutable. Never re-tag them.
-3. Consumers that must not break pin `nc-<major>` or `sha-<commit>`.
+2. `sha-*` tags are immutable. Never re-tag them. A scheduled rebuild re-reads
+   the distribution repositories, so it produces a different image for the same
+   commit; it therefore publishes `build-*` instead and only refreshes the
+   rolling tags.
+3. `build-*` tags are internal plumbing of the scheduled rebuild. Do not
+   reference them from another repository.
+4. Consumers that must not break pin `nc-<major>` or `sha-<commit>`.
    Consumers that want automatic updates use `latest` (stable) or `dev`
    (development).
-4. The bare `<major>` tag is kept only so existing environments keep working.
+5. The bare `<major>` tag is kept only so existing environments keep working.
    New consumers must use `dev-<major>`. It will be removed once the migration
    is complete.
+
+## Scheduled refresh
+
+Both channels are rebuilt and republished on a schedule (weekly), so the
+published images pick up distribution security fixes without a code change.
+This is what stops the recurring pattern of "a CVE lands, the base image is
+stale, the scan goes red".
+
+A scheduled run is a full lifecycle run: build, scan, **boot test**, then
+publish. It refreshes `latest`, `nc-<major>` and `dev*` only — never `sha-*`.
 
 ## Build channels
 
@@ -179,16 +195,22 @@ Automated checks are part of the image lifecycle, not an extra step:
 * SARIF reports are uploaded to GitHub code scanning **even when the scan
   fails**, so a red build is diagnosable from the artifacts alone.
 * A build that fails the scan is not published.
-* Every channel is **smoke tested** before merging
-  (`.github/workflows/image-smoke-test.yml`, `tests/smoke-test.sh`): the real
-  stack is booted — postgres + app + web — and the run asserts that
-  Nextcloud installs, that `occ status` reports `"installed":true`, that the
-  HTTP front-end answers on `status.php`, and that the traceability labels
-  are present. A green build only proves an image compiles; the smoke test
-  proves it boots.
+* Every channel is **smoke tested before publication**
+  (`tests/smoke-test.sh`): the real stack is booted — postgres + app + web —
+  and the run asserts that Nextcloud installs, that `occ status` reports
+  `"installed":true`, that the HTTP front-end answers on `status.php`, and that
+  the traceability labels are present. A green build only proves an image
+  compiles; the smoke test proves it boots. The stable channel is tested by the
+  `smoke` job in `.github/workflows/docker-image.yml`, which gates `publish`;
+  the development channel is tested by
+  `.github/workflows/nextcloud-development.yml`, which gates its push. In the
+  development channel the image handed to the smoke test is the same one that
+  was scanned, not a rebuild.
 * `make scan-images` runs the scan locally for the stable channel.
 * `make smoke-test` and `make smoke-test-dev` run the smoke test locally for
   the stable and the development channel.
+* Both channels are also rebuilt on a schedule (see "Scheduled refresh"), so
+  security fixes reach the published images without waiting for a code change.
 * `make test` runs the repository's own regression tests and must pass before
   merging.
 

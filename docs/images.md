@@ -155,8 +155,13 @@ Reproducibility rules:
 Automated checks are part of the image lifecycle, not an extra step:
 
 * Every image built in CI is scanned with Trivy for both architectures before
-  it is pushed (`scripts/scan-images.sh`, policy in `trivy.yaml`).
-* SARIF reports are uploaded to GitHub code scanning.
+  it is pushed (`scripts/scan-images.sh`, policy in `trivy.yaml`). The scanner
+  version is pinned in `.github/actions/build-and-scan/action.yml` and
+  documented in `README.md`; keep the local and CI versions identical so the
+  results match. An outdated scanner is a common cause of opaque failures, so
+  bump it deliberately and record the new version in `README.md`.
+* SARIF reports are uploaded to GitHub code scanning **even when the scan
+  fails**, so a red build is diagnosable from the artifacts alone.
 * A build that fails the scan is not published.
 * Every channel is **smoke tested** before merging
   (`.github/workflows/image-smoke-test.yml`, `tests/smoke-test.sh`): the real

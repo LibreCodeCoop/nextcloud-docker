@@ -266,6 +266,11 @@ locally with:
 make scan-images
 ```
 
+The scan uses **Trivy `v0.75.0`** with the policy in [`trivy.yaml`](trivy.yaml)
+(HIGH/CRITICAL with a published fix, `exit-code: 1`, `exit-on-eol: 1`). Use the
+same version locally so results match CI. A scan that fails blocks the
+publication of the image — fix the image, do not weaken the policy.
+
 The repository regression tests are run with:
 
 ```bash

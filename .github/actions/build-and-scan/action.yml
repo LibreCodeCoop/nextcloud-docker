@@ -52,7 +52,11 @@ runs:
     - name: Install Trivy
       uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
       with:
-        version: v0.74.0
+        # Keep in sync with the version documented in README.md and
+        # docs/images.md. Trivy releases a new minor roughly monthly and its
+        # vulnerability DB evolves with it; an outdated scanner is a common
+        # cause of opaque scan failures.
+        version: v0.75.0
         cache: true
 
     - name: Scan image

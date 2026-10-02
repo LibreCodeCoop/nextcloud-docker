@@ -80,6 +80,7 @@ jobs:
             BUILD_DATE=${{ steps.params.outputs.build_date }}
 
       - name: Save SARIF reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trivy-sarif-app-dev

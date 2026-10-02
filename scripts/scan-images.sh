@@ -32,6 +32,8 @@ if [[ "$trivy_bin" == "trivy.exe" ]] && command -v wslpath >/dev/null 2>&1; then
 fi
 
 scan_status=0
+scanned=0
+failed=()
 for image_spec in "$@"; do
   if [[ "$image_spec" != *=* ]]; then
     printf 'Expected label=image, received: %s\n' "$image_spec" >&2
@@ -53,8 +55,10 @@ for image_spec in "$@"; do
   fi
 
   printf '\nScanning %s for %s (%s), table output\n' "$label" "$platform" "$image"
+  scanned=$((scanned + 1))
   if ! "$trivy_bin" image --config "$trivy_config" --platform "$platform" --format table "$image"; then
     scan_status=1
+    failed+=("${label} (${platform})")
   fi
 
   printf '\nScanning %s for %s (%s), SARIF output\n' "$label" "$platform" "$image"
@@ -67,5 +71,22 @@ for image_spec in "$@"; do
     scan_status=1
   fi
 done
+
+if [[ ${#failed[@]} -gt 0 ]]; then
+  {
+    printf '\n==============================================================\n'
+    printf 'SCAN POLICY FAILED for %d of %d image(s):\n' "${#failed[@]}" "$scanned"
+    for entry in "${failed[@]}"; do
+      printf '  - %s\n' "$entry"
+    done
+    printf '\nPolicy: %s\n' "$trivy_config"
+    printf 'This means HIGH/CRITICAL vulnerabilities with a published fix,\n'
+    printf 'or an end-of-life base image. See the table output above for\n'
+    printf 'the exact findings. Fix the image; do not weaken the policy.\n'
+    printf '==============================================================\n'
+  } >&2
+elif [[ "$scan_status" -eq 0 ]]; then
+  printf '\nScan policy passed for %d image(s).\n' "$scanned"
+fi
 
 exit "$scan_status"

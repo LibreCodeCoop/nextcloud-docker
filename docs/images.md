@@ -158,9 +158,18 @@ Automated checks are part of the image lifecycle, not an extra step:
   it is pushed (`scripts/scan-images.sh`, policy in `trivy.yaml`).
 * SARIF reports are uploaded to GitHub code scanning.
 * A build that fails the scan is not published.
-* `make scan-images` runs the same scan locally for the stable channel.
-* `bash tests/test-scan-images.sh` and `bash tests/test-hooks.sh` are the
-  repository's own regression tests and must pass before merging.
+* Every channel is **smoke tested** before merging
+  (`.github/workflows/image-smoke-test.yml`, `tests/smoke-test.sh`): the real
+  stack is booted — postgres + app + web — and the run asserts that
+  Nextcloud installs, that `occ status` reports `"installed":true`, that the
+  HTTP front-end answers on `status.php`, and that the traceability labels
+  are present. A green build only proves an image compiles; the smoke test
+  proves it boots.
+* `make scan-images` runs the scan locally for the stable channel.
+* `make smoke-test` and `make smoke-test-dev` run the smoke test locally for
+  the stable and the development channel.
+* `make test` runs the repository's own regression tests and must pass before
+  merging.
 
 ## Deployment recipes
 

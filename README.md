@@ -272,6 +272,21 @@ The repository regression tests are run with:
 make test
 ```
 
+## Image smoke test
+
+Building an image only proves it compiles. The smoke test boots the real stack
+(postgres + app + web) and asserts that Nextcloud installs, that `occ status`
+reports it, that `status.php` answers over HTTP and that the traceability
+labels are present:
+
+```bash
+make smoke-test      # stable channel
+make smoke-test-dev  # development (daily) channel
+```
+
+It needs Docker and takes a few minutes. The same check runs in CI on every
+change to `.docker/**`. See `tests/smoke-test.sh` for the full option list.
+
 ## Contributing
 
 Read [AGENTS.md](AGENTS.md) before opening a pull request. It covers the hard

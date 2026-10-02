@@ -1,7 +1,7 @@
 COMPOSE ?= docker compose
 GARAGES3_COMPOSE_FILE ?= docker-compose-garages3.yml
 
-.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test test-hooks test-scan-images scan-images build-dev
+.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test test-hooks test-scan-images scan-images build-dev smoke-test smoke-test-dev
 
 # Build the development (daily) channel of the app image locally.
 # See docs/images.md for the build channels and the tagging rules.
@@ -17,6 +17,18 @@ build-dev:
 	  --file .docker/app/Dockerfile .docker/app
 
 test: test-hooks test-scan-images
+
+# Boot the real stack (postgres + app + web) and assert Nextcloud installs,
+# `occ status` reports it, the HTTP front-end answers and the OCI labels exist.
+# Requires Docker. See tests/smoke-test.sh for the full option list.
+smoke-test:
+	bash tests/smoke-test.sh
+
+smoke-test-dev:
+	bash tests/smoke-test.sh \
+	  --source daily \
+	  --base "$(DEV_BASE_IMAGE)" \
+	  --major "$(DEV_NEXTCLOUD_MAJOR)"
 
 up-garages3:
 	$(COMPOSE) -f $(GARAGES3_COMPOSE_FILE) up -d garage

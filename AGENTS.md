@@ -40,9 +40,10 @@ reuse. If code and that document disagree, fix the code.
 .docker/app/config/php.ini      shared PHP configuration
 .docker/web/                    web image (nginx.conf, nextcloud.conf)
 .github/actions/build-and-scan/ build + Trivy scan of one image, both arches
-.github/workflows/              CI: stable publish, development publish
+.github/workflows/              CI: stable publish, development publish, smoke test
 scripts/scan-images.sh          Trivy wrapper shared by CI and `make`
 tests/                          repository regression tests
+tests/smoke-test.sh             boots the real stack and asserts it works
 docs/images.md                  image policy (naming, tags, reuse)
 ```
 
@@ -54,12 +55,20 @@ docs/images.md                  image policy (naming, tags, reuse)
 3. Run the repository tests:
 
    ```bash
-   bash tests/test-hooks.sh
-   bash tests/test-scan-images.sh
+   make test
    ```
 
-4. If you touched `.docker/app` or `.docker/web`, run `make scan-images`
-   (requires Docker and Trivy) and attach the output to the pull request.
+4. If you touched `.docker/app` or `.docker/web`, also run the smoke test and
+   the scan, and attach the output to the pull request:
+
+   ```bash
+   make smoke-test      # boots postgres + app + web, asserts install/HTTP/labels
+   make smoke-test-dev  # same, on the development (daily) channel
+   make scan-images
+   ```
+
+   A green build only proves an image compiles. `make smoke-test` proves it
+   boots, so it is the check that matters most after a Dockerfile change.
 5. Update `docs/images.md` in the same pull request whenever you change naming,
    tagging, build channels or labels. Documentation is part of the change, not
    a follow-up.
@@ -77,8 +86,9 @@ It is delivered as increments:
 * [x] One reusable build-and-scan action used by every build channel.
 * [x] Scan development images with the same policy as stable images.
 * [x] Document naming, tagging and reuse rules.
-* [ ] Image smoke tests in CI (install Nextcloud, run `occ status`, hit
-      `status.php`) so a build is proven to boot, not only to compile.
+* [x] Image smoke tests in CI (`tests/smoke-test.sh`): boots postgres + app +
+      web, asserts the install completes, `occ status` reports it, `status.php`
+      answers and the OCI labels are present, for both channels.
 * [ ] Generate an SBOM per published image and attach it to the release.
 * [ ] Dependabot/Renovate updates for `PHP_EXTENSION_INSTALLER_VERSION` and the
       GitHub Actions used here.

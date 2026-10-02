@@ -230,6 +230,25 @@ Change the value of NEXTCLOUD_VERSION at `.env` file and put the tag name that y
 
 The GHCR build workflow reads `NEXTCLOUD_VERSION` from `.env.example` and publishes the app and web images as static `:latest` tags so tools like Watchtower can track them reliably.
 
+Published tags, naming rules and the reuse policy for other repositories are documented in [docs/images.md](docs/images.md). In short:
+
+| Tag | Meaning |
+| --- | --- |
+| `latest` | latest stable build |
+| `nc-<major>` | stable build for a Nextcloud major (pin this in production) |
+| `sha-<commit>` | immutable build, traceable to a commit |
+| `dev` / `dev-<major>` | build of the current Nextcloud master |
+
+### Reuse these images in another environment
+
+The images published by this repository are meant to be extended, not copied:
+
+```dockerfile
+FROM ghcr.io/librecodecoop/nextcloud-docker-app:nc-34
+```
+
+See [docs/images.md](docs/images.md) for what belongs in this foundation and what must stay in the consuming environment.
+
 Build the images, down the containers and get up again:
 
 ```bash
@@ -239,12 +258,55 @@ docker compose up -d
 
 ## Vulnerability scanning
 
-Published `app` and `web` images are scanned for vulnerabilities. Contributors
-can run the scan locally with:
+Published `app` and `web` images are scanned for vulnerabilities on every build,
+for both architectures, before they are pushed. Contributors can run the scan
+locally with:
 
 ```bash
 make scan-images
 ```
+
+The scan uses **Trivy `v0.75.0`** with the policy in [`trivy.yaml`](trivy.yaml)
+(HIGH/CRITICAL with a published fix, `exit-code: 1`, `exit-on-eol: 1`). Use the
+same version locally so results match CI. A scan that fails blocks the
+publication of the image — fix the image, do not weaken the policy.
+
+The repository regression tests are run with:
+
+```bash
+make test
+```
+
+## Image smoke test
+
+Building an image only proves it compiles. The smoke test boots the real stack
+(postgres + app + web) and asserts that Nextcloud installs, that `occ status`
+reports it, that `status.php` answers over HTTP and that the traceability
+labels are present:
+
+```bash
+make smoke-test      # stable channel
+make smoke-test-dev  # development (daily) channel
+```
+
+It needs Docker and takes a few minutes. In CI the same check is what gates
+publication: an image that does not boot never reaches the registry, on any
+run, including the scheduled ones. See `tests/smoke-test.sh` for the full
+option list.
+
+## Scheduled image refresh
+
+Both channels are rebuilt and republished weekly so the published images pick
+up distribution security fixes without a code change. Scheduled runs refresh
+the rolling tags (`latest`, `nc-<major>`, `dev*`) and never rewrite
+`sha-<commit>`, which is immutable by contract. See
+[docs/images.md](docs/images.md).
+
+## Contributing
+
+Read [AGENTS.md](AGENTS.md) before opening a pull request. It covers the hard
+rules for the image foundation, how to verify a change, and the roadmap of the
+work tracked in issue [#47](https://github.com/LibreCodeCoop/nextcloud-docker/issues/47).
 
 ## Logs
 

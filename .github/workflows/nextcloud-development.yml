@@ -1,0 +1,173 @@
+name: Build Nextcloud Development Image
+
+# Builds the "daily" channel of the unified app image: the current Nextcloud
+# master, verified and labelled exactly like the stable image.
+#
+# The workflow is version agnostic. Every development cycle is expressed as
+# build parameters (NEXTCLOUD_MAJOR + base image), never as a new Dockerfile.
+#
+# Triggers:
+#   * weekly schedule, so the development image keeps following Nextcloud master
+#   * push to main when the app image definition changes
+#   * manual dispatch, to build a specific major / base image
+
+on:
+  workflow_dispatch:
+    inputs:
+      nextcloud_major:
+        description: Nextcloud major expected in the daily tarball (e.g. 35)
+        required: true
+        default: '35'
+      base_image:
+        description: Upstream image tag used as the base (e.g. 34-fpm)
+        required: true
+        default: '34-fpm'
+  schedule:
+    - cron: '17 3 * * 1'
+  push:
+    branches:
+      - main
+    paths:
+      - .docker/app/**
+      - .github/actions/build-and-scan/**
+      - .github/workflows/nextcloud-development.yml
+
+concurrency:
+  group: nextcloud-development-${{ github.event.inputs.nextcloud_major || '35' }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    name: Build and push development image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve build parameters
+        id: params
+        env:
+          INPUT_MAJOR: ${{ github.event.inputs.nextcloud_major }}
+          INPUT_BASE: ${{ github.event.inputs.base_image }}
+          EVENT_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
+        run: |
+          set -euo pipefail
+          # Scheduled / push builds track the in-progress major by default.
+          echo "major=${INPUT_MAJOR:-35}" >> "$GITHUB_OUTPUT"
+          echo "base=${INPUT_BASE:-34-fpm}" >> "$GITHUB_OUTPUT"
+          echo "repo_name=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+          # Scheduled rebuilds re-read the daily tarball and the distribution
+          # repositories, so they must not rewrite the immutable `sha-<commit>`
+          # tags. They use internal `build-*` per-architecture tags instead.
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            echo "version=build-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "build_date=${EVENT_TIMESTAMP:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and scan development image
+        uses: ./.github/actions/build-and-scan
+        with:
+          label: app-dev
+          context: .docker/app
+          build-args: |
+            NEXTCLOUD_VERSION=${{ steps.params.outputs.base }}
+            NEXTCLOUD_SOURCE=daily
+            NEXTCLOUD_MAJOR=${{ steps.params.outputs.major }}
+            VCS_REF=${{ github.sha }}
+            BUILD_DATE=${{ steps.params.outputs.build_date }}
+
+      - name: Save SARIF reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif-app-dev
+          path: trivy-results/*.sarif
+          if-no-files-found: warn
+
+      # Gate the publication on a boot test of the real development image: the
+      # image scanned above is the one handed to the smoke test, so a daily
+      # build that compiles but does not boot never reaches the registry.
+      - name: Build web image
+        run: docker build --tag smoke/web .docker/web
+
+      - name: Smoke test the development image
+        env:
+          MAJOR: ${{ steps.params.outputs.major }}
+        run: |
+          set -euo pipefail
+          args=(--app-image scan/app-dev:amd64 --web-image smoke/web --source daily)
+          if [ -n "${MAJOR}" ]; then
+            args+=(--major "${MAJOR}")
+          fi
+          bash tests/smoke-test.sh "${args[@]}"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push scanned architecture images
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ steps.params.outputs.repo_name }}-app
+          IMAGE_VERSION: ${{ steps.params.outputs.version }}
+          MAJOR: ${{ steps.params.outputs.major }}
+        run: |
+          set -euo pipefail
+
+          docker tag scan/app-dev:amd64 "${IMAGE}:${IMAGE_VERSION}-amd64"
+          docker tag scan/app-dev:arm64 "${IMAGE}:${IMAGE_VERSION}-arm64"
+          docker push "${IMAGE}:${IMAGE_VERSION}-amd64"
+          docker push "${IMAGE}:${IMAGE_VERSION}-arm64"
+
+      - name: Publish multi-platform development tags
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ steps.params.outputs.repo_name }}-app
+          IMAGE_VERSION: ${{ steps.params.outputs.version }}
+          MAJOR: ${{ steps.params.outputs.major }}
+        run: |
+          set -euo pipefail
+
+          docker buildx imagetools create \
+            --tag "${IMAGE}:dev-${MAJOR}" \
+            --tag "${IMAGE}:dev" \
+            --tag "${IMAGE}:${MAJOR}" \
+            "${IMAGE}:${IMAGE_VERSION}-amd64" \
+            "${IMAGE}:${IMAGE_VERSION}-arm64"
+
+      - name: Collect SARIF reports
+        id: sarif
+        run: |
+          set -euo pipefail
+          for arch in amd64 arm64; do
+            if [ -f "trivy-results/app-dev-linux-${arch}.sarif" ]; then
+              echo "${arch}=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "${arch}=false" >> "$GITHUB_OUTPUT"
+            fi
+          done
+
+      - name: Upload app-dev amd64 SARIF to GitHub code scanning
+        if: steps.sarif.outputs.amd64 == 'true'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results/app-dev-linux-amd64.sarif
+          category: trivy-app-dev-linux-amd64
+
+      - name: Upload app-dev arm64 SARIF to GitHub code scanning
+        if: steps.sarif.outputs.arm64 == 'true'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results/app-dev-linux-arm64.sarif
+          category: trivy-app-dev-linux-arm64

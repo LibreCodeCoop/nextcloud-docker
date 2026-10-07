@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-ncdd=(bash "${ncdd[@]}")
+ncdd=(bash "$repo_root/bin/ncdd")
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/project" "$tmp/bin"
@@ -56,8 +56,8 @@ help=$("${ncdd[@]}" help ai)
 grep -q 'Do not call docker compose directly' <<<"$help"
 
 list=$(cd "$tmp/project" && "${ncdd[@]}" test --list)
-grep -q '^phpunit <<<"$list"
-grep -q '^full <<<"$list"
+grep -q '^phpunit$' <<<"$list"
+grep -q '^full$' <<<"$list"
 
 (cd "$tmp/project" && "${ncdd[@]}" test phpunit tests/php/Unit/FooTest.php)
 grep -q 'dev-worker sh -lc' "$tmp/docker.log"
@@ -70,6 +70,6 @@ json_test=$(cd "$tmp/project" && "${ncdd[@]}" test --json phpunit tests/php/Unit
 grep -q '"suite":"phpunit"' <<<"$json_test"
 grep -q '"status":0' <<<"$json_test"
 
-bash -n "${ncdd[@]}"
+bash -n "$repo_root/bin/ncdd"
 bash -n "$repo_root/lib/ncdd-tests.sh"
 echo 'ncdd CLI tests passed'

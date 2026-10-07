@@ -1,5 +1,5 @@
-name: Build and scan runtime images
-description: Build both runtime images for amd64 and arm64, then scan each image
+name: Build, scan, and validate runtime images
+description: Build and scan both runtime images, then run app image acceptance tests
 inputs:
   nextcloud_version:
     description: Nextcloud version passed to the app image build

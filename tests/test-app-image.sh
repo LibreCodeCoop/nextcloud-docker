@@ -66,7 +66,7 @@ diagnostics() {
 }
 
 cleanup() {
-  local status=$?
+  local status=$1
   set +e
 
   if [ "$status" -ne 0 ]; then
@@ -88,7 +88,7 @@ cleanup() {
 
   exit "$status"
 }
-trap cleanup EXIT
+trap 'cleanup $?' EXIT
 
 wait_until() {
   local description=$1

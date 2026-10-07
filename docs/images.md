@@ -19,13 +19,13 @@ Do not create a new image name merely to represent a Nextcloud major or developm
 
 The app image follows the tag structure used by the official Nextcloud images.
 
-| Reference | Meaning | Moving? |
+| Reference | Meaning | Behavior |
 | --- | --- | --- |
-| `:<major>-fpm` | Stable release channel within one Nextcloud major, for example `35-fpm` | Yes |
-| `:<full-version>-fpm` | A specific Nextcloud server release, for example `35.0.1-fpm` | May be rebuilt |
-| `:stable-fpm` | Current stable Nextcloud channel, when this alias is intentionally published | Yes |
-| `:master-fpm` | Development channel following Nextcloud Server `master` | Yes |
-| `@sha256:<digest>` | Exact OCI image content | No |
+| `:<major>-fpm` | Stable release channel within one Nextcloud major, for example `35-fpm` | Moving |
+| `:<full-version>-fpm` | A specific Nextcloud server release, for example `35.0.1-fpm` | Release-specific tag; may be rebuilt |
+| `:stable-fpm` | Current stable Nextcloud channel, when this alias is intentionally published | Moving |
+| `:master-fpm` | Development channel following Nextcloud Server `master` | Moving |
+| `@sha256:<digest>` | Exact OCI image content | Immutable |
 
 The runtime variant is the suffix after the channel or version. The currently defined app runtime variant is `fpm`.
 
@@ -131,11 +131,22 @@ Moving web image:
 ghcr.io/librecodecoop/nextcloud-docker-web:main
 ```
 
-Immutable consumption of either image:
+Immutable stable app image after resolving the digest of the selected stable build:
 
 ```
-ghcr.io/librecodecoop/nextcloud-docker-app@sha256:<digest>
-ghcr.io/librecodecoop/nextcloud-docker-web@sha256:<digest>
+ghcr.io/librecodecoop/nextcloud-docker-app@sha256:<stable-image-digest>
+```
+
+Immutable development app image after resolving the digest published for the `master-fpm` build:
+
+```
+ghcr.io/librecodecoop/nextcloud-docker-app@sha256:<master-image-digest>
+```
+
+Immutable web image:
+
+```
+ghcr.io/librecodecoop/nextcloud-docker-web@sha256:<web-image-digest>
 ```
 
 ## Implementation boundary

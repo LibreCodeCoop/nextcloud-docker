@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'bin/ncdd'
+      - 'lib/ncdd-test.sh'
       - 'tests/ncdd.bats'
       - 'docs/ncdd.md'
       - 'AGENTS.md'
@@ -14,6 +15,7 @@ on:
       - main
     paths:
       - 'bin/ncdd'
+      - 'lib/ncdd-test.sh'
       - 'tests/ncdd.bats'
       - 'docs/ncdd.md'
       - 'AGENTS.md'
@@ -39,7 +41,7 @@ jobs:
           file-install: false
 
       - name: ShellCheck
-        run: shellcheck bin/ncdd
+        run: shellcheck -x -P SCRIPTDIR bin/ncdd lib/ncdd-test.sh
 
       - name: Test
         run: bats tests/ncdd.bats

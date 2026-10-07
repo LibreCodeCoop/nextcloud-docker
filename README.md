@@ -30,6 +30,10 @@ bin/ncdd down
 
 See [docs/ncdd.md](docs/ncdd.md) for the command contract and testing policy.
 
+## Container image contract
+
+Image names, moving tags, immutable references, runtime variants, and required traceability metadata are defined in [docs/images.md](docs/images.md).
+
 ## Setup of docker
 
 You need to have, on your server, the installed docker. The installation can be done with an official script, following the following steps:

@@ -1,0 +1,41 @@
+name: NCDD app tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Optional branch, tag, or commit to test
+        required: false
+        type: string
+      nextcloud:
+        description: Nextcloud major or ref
+        required: true
+        default: stable35
+        type: string
+      suite:
+        description: phpunit, behat, frontend-lint, frontend-types, frontend-unit, frontend, or full
+        required: true
+        default: full
+        type: string
+      target:
+        description: Optional focused test target
+        required: false
+        type: string
+      scenario:
+        description: Optional .ncdd scenario file
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: LibreCodeCoop/nextcloud-docker/.github/workflows/test-nextcloud-app.yml@main
+    with:
+      ref: ${{ inputs.ref || '' }}
+      nextcloud: ${{ inputs.nextcloud || 'stable35' }}
+      suite: ${{ inputs.suite || 'full' }}
+      target: ${{ inputs.target || '' }}
+      scenario: ${{ inputs.scenario || '' }}

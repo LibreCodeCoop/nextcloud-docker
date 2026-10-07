@@ -103,3 +103,36 @@ ncdd scenario run .ncdd/scenarios/issue-1234.yml
 ```
 
 NCDD owns environment startup and teardown, so an issue, PR, or security regression can use the same reproduction locally and in CI.
+
+## GitHub Actions
+
+The reusable workflow runs the same NCDD contract used locally. A consumer repository can call:
+
+```yaml
+jobs:
+  ncdd:
+    uses: LibreCodeCoop/nextcloud-docker/.github/workflows/test-nextcloud-app.yml@main
+    with:
+      nextcloud: stable35
+      suite: full
+```
+
+Pull requests test the checked-out PR ref. Manual workflows can pass a branch, commit, focused target, or scenario. The workflow uploads the doctor result, test result, test log, and stack log as artifacts.
+
+A complete consumer example is available at `templates/workflows/ncdd-tests.yml`.
+
+## Dev Containers and Codespaces
+
+`templates/devcontainer/` provides a Docker-in-Docker Dev Container that installs NCDD into `~/.local/share/ncdd`, exposes the CLI on `PATH`, and forwards port 8080.
+
+Copy the template to an app repository as `.devcontainer/`. The terminal then uses the same commands as a local checkout or CI:
+
+```bash
+ncdd up --nextcloud 35
+ncdd doctor --json
+ncdd test phpunit
+ncdd test behat path/to/feature
+ncdd down
+```
+
+Codespaces consumes the same Dev Container definition; it is not a separate NCDD implementation.

@@ -160,8 +160,13 @@ EOF
   wait_until "Nextcloud installation" nextcloud_installed
 
   run docker exec -u "$RUNTIME_USER" "$APP_CONTAINER" php occ status --output=json
-  [ "$status" -eq 0 ]
-  [[ "$output" =~ "installed"[[:space:]]*:[[:space:]]*true ]]
+  if [ "$status" -ne 0 ]; then
+    fail_with_diagnostics "occ status failed."
+  fi
+  if ! grep -Eq '"installed"[[:space:]]*:[[:space:]]*true' <<<"$output"; then
+    printf '%s\n' "$output" >&2
+    fail_with_diagnostics "occ status did not report installed: true."
+  fi
 
   run docker exec -u "$RUNTIME_USER" "$APP_CONTAINER" php occ check
   if [ "$status" -ne 0 ]; then
@@ -181,5 +186,8 @@ EOF
   if [ "$status" -ne 0 ]; then
     fail_with_diagnostics "FPM did not accept the FastCGI request."
   fi
-  [[ "$output" =~ "installed"[[:space:]]*:[[:space:]]*true ]]
+  if ! grep -Eq '"installed"[[:space:]]*:[[:space:]]*true' <<<"$output"; then
+    printf '%s\n' "$output" >&2
+    fail_with_diagnostics "FPM response did not report installed: true."
+  fi
 }

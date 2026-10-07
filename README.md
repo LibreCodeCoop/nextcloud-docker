@@ -17,6 +17,19 @@ Languages avaliable: [pt-BR](docs/README_ptBR.md)
   - [Logs](#logs)
   - [Nextcloud Talk](#talk)
 
+## NCDD development interface
+
+For local app development, AI agents, CI, Dev Containers, and Codespaces, use the NCDD CLI instead of calling Docker Compose directly. The same interface is intended to run everywhere:
+
+```bash
+/path/to/nextcloud-docker/bin/ncdd up --nextcloud 35
+/path/to/nextcloud-docker/bin/ncdd doctor
+/path/to/nextcloud-docker/bin/ncdd shell
+/path/to/nextcloud-docker/bin/ncdd down
+```
+
+See [docs/ncdd.md](docs/ncdd.md) for the project contract, private-checkout workflow, diagnostics, and execution-user aliases.
+
 ## Setup of docker
 
 You need to have, on your server, the installed docker. The installation can be done with an official script, following the following steps:

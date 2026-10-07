@@ -1,21 +1,24 @@
-ARG NEXTCLOUD_BASE_IMAGE=nextcloud:34-fpm
-
+ARG NEXTCLOUD_BASE_IMAGE
 FROM ${NEXTCLOUD_BASE_IMAGE}
 
-ARG NEXTCLOUD_DAILY_URL=https://download.nextcloud.com/server/daily/latest-master.tar.bz2
+ARG NEXTCLOUD_DAILY_URL
+ARG EXPECTED_NEXTCLOUD_MAJOR=
+ARG PHP_EXTENSION_INSTALLER_VERSION=2.12.0
+ARG PHP_EXTENSION_INSTALLER_SHA256=3f49c71fa66c79b8b2b96bc0ce92885dafd7946f3b5a46f545b390d6f1617e2c
 
 RUN set -eux; \
-    curl -fsSL "${NEXTCLOUD_DAILY_URL}" -o /tmp/nextcloud.tar.bz2; \
-    curl -fsSL "${NEXTCLOUD_DAILY_URL}.sha512" -o /tmp/nextcloud.tar.bz2.sha512; \
+    archive_name="$(basename "${NEXTCLOUD_DAILY_URL}")"; \
+    curl -fsSL "${NEXTCLOUD_DAILY_URL}" -o "/tmp/${archive_name}"; \
+    curl -fsSL "${NEXTCLOUD_DAILY_URL}.sha512" -o "/tmp/${archive_name}.sha512"; \
     cd /tmp; \
-    expected_sha512="$(awk '$2 == "latest-master.tar.bz2" { print $1 }' nextcloud.tar.bz2.sha512)"; \
+    expected_sha512="$(awk -v archive="${archive_name}" '$2 == archive { print $1 }' "${archive_name}.sha512")"; \
     test -n "${expected_sha512}"; \
-    echo "${expected_sha512}  nextcloud.tar.bz2" | sha512sum -c -; \
+    echo "${expected_sha512}  ${archive_name}" | sha512sum -c -; \
     rm -rf /usr/src/nextcloud; \
-    tar -xjf nextcloud.tar.bz2 -C /usr/src/; \
+    tar -xjf "${archive_name}" -C /usr/src/; \
     nextcloud_major="$(php -r 'require "/usr/src/nextcloud/version.php"; echo $OC_Version[0];')"; \
-    test "${nextcloud_major}" = 35; \
-    rm -f /tmp/nextcloud.tar.bz2 /tmp/nextcloud.tar.bz2.sha512; \
+    if [ -n "${EXPECTED_NEXTCLOUD_MAJOR}" ]; then test "${nextcloud_major}" = "${EXPECTED_NEXTCLOUD_MAJOR}"; fi; \
+    rm -f "/tmp/${archive_name}" "/tmp/${archive_name}.sha512"; \
     rm -rf /usr/src/nextcloud/updater; \
     mkdir -p /usr/src/nextcloud/data /usr/src/nextcloud/custom_apps; \
     chmod +x /usr/src/nextcloud/occ
@@ -33,8 +36,12 @@ ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
-ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
-RUN chmod uga+x /usr/local/bin/install-php-extensions && sync \
-    && install-php-extensions bz2 imagick
+RUN set -eux; \
+    curl -fsSL \
+        "https://github.com/mlocati/docker-php-extension-installer/releases/download/${PHP_EXTENSION_INSTALLER_VERSION}/install-php-extensions" \
+        -o /usr/local/bin/install-php-extensions; \
+    echo "${PHP_EXTENSION_INSTALLER_SHA256}  /usr/local/bin/install-php-extensions" | sha256sum -c -; \
+    chmod uga+x /usr/local/bin/install-php-extensions; \
+    install-php-extensions bz2 imagick
 
 COPY config/php.ini /usr/local/etc/php/conf.d/

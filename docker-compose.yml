@@ -16,7 +16,7 @@ services:
     build:
       context: .docker/app
       args:
-        NEXTCLOUD_VERSION: ${NEXTCLOUD_VERSION:-stable-fpm}
+        NEXTCLOUD_BASE_IMAGE: nextcloud:${NEXTCLOUD_VERSION:-stable-fpm}
     volumes:
       - ./volumes/nextcloud:/var/www/html
       - ./volumes/backups:/backups
@@ -70,7 +70,7 @@ services:
     build:
       context: .docker/app
       args:
-        NEXTCLOUD_VERSION: ${NEXTCLOUD_VERSION:-stable-fpm}
+        NEXTCLOUD_BASE_IMAGE: nextcloud:${NEXTCLOUD_VERSION:-stable-fpm}
     restart: unless-stopped
     environment:
       - TZ

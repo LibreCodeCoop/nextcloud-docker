@@ -45,7 +45,7 @@ test-current-app-image:
 	  version="$$(sed -n 's/^NEXTCLOUD_VERSION=//p' .env.example | head -n 1)"; \
 	  test -n "$$version" || { echo 'NEXTCLOUD_VERSION is missing from .env.example' >&2; exit 1; }; \
 	  docker buildx build --platform linux/amd64 --load --tag "$(APP_TEST_IMAGE)" \
-	    --build-arg "NEXTCLOUD_VERSION=$$version" --file .docker/app/Dockerfile .docker/app; \
+	    --build-arg "NEXTCLOUD_BASE_IMAGE=nextcloud:$version" --file .docker/app/Dockerfile .docker/app; \
 	  $(MAKE) test-app-image APP_IMAGE="$(APP_TEST_IMAGE)"
 
 scan-images:
@@ -53,9 +53,9 @@ scan-images:
 	  version="$$(sed -n 's/^NEXTCLOUD_VERSION=//p' .env.example | head -n 1)"; \
 	  test -n "$$version" || { echo 'NEXTCLOUD_VERSION is missing from .env.example' >&2; exit 1; }; \
 	  docker buildx build --platform linux/amd64 --load --tag nextcloud-app:scan-amd64 \
-	    --build-arg "NEXTCLOUD_VERSION=$$version" --file .docker/app/Dockerfile .docker/app; \
+	    --build-arg "NEXTCLOUD_BASE_IMAGE=nextcloud:$version" --file .docker/app/Dockerfile .docker/app; \
 	  docker buildx build --platform linux/arm64 --load --tag nextcloud-app:scan-arm64 \
-	    --build-arg "NEXTCLOUD_VERSION=$$version" --file .docker/app/Dockerfile .docker/app; \
+	    --build-arg "NEXTCLOUD_BASE_IMAGE=nextcloud:$version" --file .docker/app/Dockerfile .docker/app; \
 	  docker buildx build --platform linux/amd64 --load --tag nextcloud-web:scan-amd64 \
 	    --file .docker/web/Dockerfile .docker/web; \
 	  docker buildx build --platform linux/arm64 --load --tag nextcloud-web:scan-arm64 \

@@ -18,6 +18,8 @@ Commands:
   shell [--as USER]  Open a shell in the app container
   exec [--as USER] -- COMMAND...
                      Execute a command in the app container
+  test [--list|SUITE]
+                     Run a focused app test suite
   help [ai]          Show help or the compact agent contract
 EOF
 }
@@ -30,6 +32,7 @@ NCDD agent contract
 - Git checkout/authentication stays on the host or CI workspace.
 - App worktrees belong under volumes/nextcloud/apps-extra/.
 - Use --as runtime for commands that must run as the Nextcloud runtime user.
+- Use bin/ncdd test for supported app test suites instead of rebuilding container commands.
 EOF
 }
 
@@ -127,6 +130,11 @@ if [ "$#" -gt 0 ]; then
   shift
 fi
 
+if [ -f "$NCDD_ROOT/lib/ncdd-test.sh" ]; then
+  # shellcheck source=../lib/ncdd-test.sh
+  source "$NCDD_ROOT/lib/ncdd-test.sh"
+fi
+
 case "$command" in
   help)
     if [ "${1:-}" = "ai" ]; then
@@ -180,6 +188,9 @@ case "$command" in
     ;;
   doctor)
     doctor "$@"
+    ;;
+  test)
+    ncdd_test "$@"
     ;;
   *)
     fail "unknown command: $command"

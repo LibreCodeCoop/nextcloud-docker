@@ -7,9 +7,13 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: ShellCheck app image acceptance test
-      shell: bash
-      run: shellcheck tests/test-app-image.sh
+    - name: Setup Bats
+      uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43 # 4.0.0
+      with:
+        support-install: false
+        assert-install: false
+        detik-install: false
+        file-install: false
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
@@ -80,8 +84,12 @@ runs:
 
     - name: Runtime acceptance app image (linux/amd64)
       shell: bash
-      run: bash tests/test-app-image.sh scan/app:amd64
+      env:
+        APP_IMAGE: scan/app:amd64
+      run: bats tests/app-image.bats
 
     - name: Runtime acceptance app image (linux/arm64)
       shell: bash
-      run: bash tests/test-app-image.sh scan/app:arm64
+      env:
+        APP_IMAGE: scan/app:arm64
+      run: bats tests/app-image.bats

@@ -165,7 +165,7 @@ For a local build of the current app image followed by the same acceptance test:
 make test-current-app-image
 ```
 
-The acceptance test creates an isolated Docker network and PostgreSQL container, starts the image with Nextcloud autoinstall variables, waits for the installation, runs `occ status` and `occ check`, and sends a FastCGI request through the FPM runtime. Test-created resources are removed on success and failure.
+The Bats acceptance test creates an isolated Docker network and PostgreSQL container, starts the image with Nextcloud autoinstall variables, waits for the installation, runs `occ status` and `occ check`, and sends a FastCGI request through the FPM runtime. Test-created resources are removed on success and failure.
 
 CI must run this test against the exact locally loaded app images produced by the build step. Runtime acceptance is a publication gate alongside vulnerability scanning; a separate deployment-stack test is not required for this contract.
 

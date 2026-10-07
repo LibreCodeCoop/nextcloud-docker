@@ -38,7 +38,7 @@ test-ncdd:
 
 test-app-image:
 	@test -n "$(APP_IMAGE)" || { echo 'Usage: make test-app-image APP_IMAGE=<local-image>' >&2; exit 2; }
-	bash tests/test-app-image.sh "$(APP_IMAGE)"
+	APP_IMAGE="$(APP_IMAGE)" bats tests/app-image.bats
 
 test-current-app-image:
 	@set -e; \

@@ -149,6 +149,23 @@ Immutable web image:
 ghcr.io/librecodecoop/nextcloud-docker-web@sha256:<web-image-digest>
 ```
 
+## App image build sources
+
+The app image uses a single `.docker/app/Dockerfile` for both release and development builds.
+
+The Dockerfile has two explicit source modes:
+
+- `NEXTCLOUD_SOURCE=release` keeps the Nextcloud payload provided by the selected official Nextcloud base image;
+- `NEXTCLOUD_SOURCE=daily` replaces that payload with a verified upstream daily archive.
+
+The base runtime and the Nextcloud server payload are separate inputs. A development build can therefore follow Nextcloud Server `master` without introducing a Dockerfile or image identity tied to a future major.
+
+For daily builds, `NEXTCLOUD_DAILY_URL` is required. The Dockerfile downloads the matching `.sha512` file, verifies the archive, and prepares `/usr/src/nextcloud` in the layout expected by the official Nextcloud entrypoint.
+
+The repository Compose environment keeps `NEXTCLOUD_VERSION` as its user-facing version setting and maps it to the generic official base image. There is no second Compose stack for development images.
+
+The external PHP extension installer is pinned to an explicit release and SHA-256 instead of a mutable `latest` download.
+
 ## Runtime acceptance
 
 The app image has a runtime acceptance test based on the same behavioral checks used by the official Nextcloud container projects.
@@ -171,12 +188,12 @@ CI must run this test against the exact locally loaded app images produced by th
 
 ## Implementation boundary
 
-This document defines the target contract. It does not by itself migrate the current Dockerfiles, workflows, or historical tags.
+This document defines the target contract and the generic app-image foundation now implements the release/daily source split.
 
-The image-foundation work in #47 must implement this convention incrementally. In particular:
+Remaining work in #47 must continue incrementally. In particular:
 
-- use one generic app image build path instead of a Dockerfile per Nextcloud major;
-- keep the development channel tied to Nextcloud Server `master`;
+- publish development images from the generic foundation using the documented `:master-fpm` contract;
+- add the remaining OCI traceability metadata to published images;
 - keep LibreSign-specific behavior out of the generic runtime;
-- test and scan images before publication;
-- preserve the existing Compose environment until its replacement path is validated.
+- preserve scan and runtime-acceptance gates before publication;
+- preserve the existing Compose environment until a replacement is explicitly validated.

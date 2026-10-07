@@ -1,7 +1,7 @@
 COMPOSE ?= docker compose
 GARAGES3_COMPOSE_FILE ?= docker-compose-garages3.yml
 
-.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test-hooks test-scan-images scan-images
+.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test-hooks test-scan-images test-ncdd scan-images
 
 up-garages3:
 	$(COMPOSE) -f $(GARAGES3_COMPOSE_FILE) up -d garage
@@ -31,6 +31,9 @@ test-hooks:
 
 test-scan-images:
 	bash tests/test-scan-images.sh
+
+test-ncdd:
+	bats tests/ncdd.bats
 
 scan-images:
 	@set -e; \

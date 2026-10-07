@@ -17,6 +17,19 @@ Languages avaliable: [pt-BR](docs/README_ptBR.md)
   - [Logs](#logs)
   - [Nextcloud Talk](#talk)
 
+## NCDD command interface
+
+For development automation, use the repository's `bin/ncdd` wrapper instead of reproducing Docker Compose details in CI, agents, or local instructions. It operates the existing `docker-compose.yml` and `docker-compose-postgres.yml`; it does not define a second stack.
+
+```bash
+bin/ncdd up
+bin/ncdd doctor
+bin/ncdd shell
+bin/ncdd down
+```
+
+See [docs/ncdd.md](docs/ncdd.md) for the command contract and testing policy.
+
 ## Setup of docker
 
 You need to have, on your server, the installed docker. The installation can be done with an official script, following the following steps:

@@ -1,0 +1,187 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NCDD_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+APP_SERVICE=${NCDD_APP_SERVICE:-app}
+RUNTIME_USER=${NCDD_RUNTIME_USER:-www-data}
+
+usage() {
+  cat <<'EOF'
+Usage: ncdd <command> [options]
+
+Commands:
+  up                 Start the existing NCDD stack
+  down               Stop the existing NCDD stack
+  status             Show stack status
+  env                Show resolved NCDD environment
+  doctor [--json]    Check Docker, Compose, app service, and Nextcloud
+  shell [--as USER]  Open a shell in the app container
+  exec [--as USER] -- COMMAND...
+                     Execute a command in the app container
+  help [ai]          Show help or the compact agent contract
+EOF
+}
+
+agent_help() {
+  cat <<'EOF'
+NCDD agent contract
+- Use bin/ncdd instead of calling docker compose directly.
+- The CLI operates docker-compose.yml plus docker-compose-postgres.yml.
+- Git checkout/authentication stays on the host or CI workspace.
+- App worktrees belong under volumes/nextcloud/apps-extra/.
+- Use --as runtime for commands that must run as the Nextcloud runtime user.
+EOF
+}
+
+fail() {
+  printf 'ncdd: %s\n' "$*" >&2
+  exit 1
+}
+
+compose() {
+  docker compose \
+    --project-directory "$NCDD_ROOT" \
+    -f "$NCDD_ROOT/docker-compose.yml" \
+    -f "$NCDD_ROOT/docker-compose-postgres.yml" \
+    "$@"
+}
+
+ensure_network() {
+  local network=$1
+
+  if ! docker network inspect "$network" >/dev/null 2>&1; then
+    docker network create "$network" >/dev/null
+  fi
+}
+
+resolve_user() {
+  case "$1" in
+    runtime) printf '%s\n' "$RUNTIME_USER" ;;
+    root) printf 'root\n' ;;
+    *) printf '%s\n' "$1" ;;
+  esac
+}
+
+nextcloud_version() {
+  if [ -n "${NEXTCLOUD_VERSION:-}" ]; then
+    printf '%s\n' "$NEXTCLOUD_VERSION"
+    return
+  fi
+
+  local file
+  for file in "$NCDD_ROOT/.env" "$NCDD_ROOT/.env.example"; do
+    if [ -f "$file" ]; then
+      local value
+      value=$(sed -n 's/^NEXTCLOUD_VERSION=//p' "$file" | head -n 1)
+      if [ -n "$value" ]; then
+        printf '%s\n' "$value"
+        return
+      fi
+    fi
+  done
+
+  printf 'unset\n'
+}
+
+doctor() {
+  local json=false
+  if [ "${1:-}" = "--json" ]; then
+    json=true
+    shift
+  fi
+  [ "$#" -eq 0 ] || fail "doctor accepts only --json"
+
+  local docker_ok=false compose_ok=false app_running=false nextcloud_ready=false
+  command -v docker >/dev/null 2>&1 && docker_ok=true
+  if $docker_ok && docker compose version >/dev/null 2>&1; then
+    compose_ok=true
+  fi
+  if $compose_ok && compose ps --status running --services 2>/dev/null | grep -qx "$APP_SERVICE"; then
+    app_running=true
+  fi
+  if $app_running && compose exec -T --user "$RUNTIME_USER" "$APP_SERVICE" php occ status --output=json >/dev/null 2>&1; then
+    nextcloud_ready=true
+  fi
+
+  local ready=false
+  if $docker_ok && $compose_ok && $app_running && $nextcloud_ready; then
+    ready=true
+  fi
+
+  if $json; then
+    printf '{"ready":%s,"docker":%s,"compose":%s,"app_running":%s,"nextcloud_ready":%s,"nextcloud_version":"%s"}\n' \
+      "$ready" "$docker_ok" "$compose_ok" "$app_running" "$nextcloud_ready" "$(nextcloud_version)"
+  else
+    printf '%-20s %s\n' "Docker" "$docker_ok"
+    printf '%-20s %s\n' "Docker Compose" "$compose_ok"
+    printf '%-20s %s\n' "App running" "$app_running"
+    printf '%-20s %s\n' "Nextcloud ready" "$nextcloud_ready"
+    printf '%-20s %s\n' "Nextcloud version" "$(nextcloud_version)"
+  fi
+
+  $ready
+}
+
+command=${1:-help}
+if [ "$#" -gt 0 ]; then
+  shift
+fi
+
+case "$command" in
+  help)
+    if [ "${1:-}" = "ai" ]; then
+      agent_help
+    else
+      usage
+    fi
+    ;;
+  env)
+    printf 'NCDD_ROOT=%s\n' "$NCDD_ROOT"
+    printf 'NCDD_APP_SERVICE=%s\n' "$APP_SERVICE"
+    printf 'NCDD_RUNTIME_USER=%s\n' "$RUNTIME_USER"
+    printf 'NEXTCLOUD_VERSION=%s\n' "$(nextcloud_version)"
+    ;;
+  up)
+    [ "$#" -eq 0 ] || fail "up does not accept arguments"
+    ensure_network reverse-proxy
+    ensure_network postgres
+    compose up -d redis postgres app web cron
+    ;;
+  down)
+    compose down "$@"
+    ;;
+  status)
+    compose ps "$@"
+    ;;
+  shell)
+    user=root
+    if [ "${1:-}" = "--as" ]; then
+      user=$(resolve_user "${2:?missing user}")
+      shift 2
+    fi
+    [ "$#" -eq 0 ] || fail "unknown shell arguments: $*"
+    compose exec --user "$user" "$APP_SERVICE" bash
+    ;;
+  exec)
+    user=root
+    if [ "${1:-}" = "--as" ]; then
+      user=$(resolve_user "${2:?missing user}")
+      shift 2
+    fi
+    if [ "${1:-}" = "--" ]; then
+      shift
+    fi
+    [ "$#" -gt 0 ] || fail "exec requires a command"
+    tty=()
+    if [ ! -t 0 ] || [ ! -t 1 ]; then
+      tty=(-T)
+    fi
+    compose exec "${tty[@]}" --user "$user" "$APP_SERVICE" "$@"
+    ;;
+  doctor)
+    doctor "$@"
+    ;;
+  *)
+    fail "unknown command: $command"
+    ;;
+esac

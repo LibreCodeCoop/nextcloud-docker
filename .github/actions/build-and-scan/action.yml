@@ -30,7 +30,7 @@ runs:
         platforms: linux/amd64
         load: true
         build-args: |
-          NEXTCLOUD_VERSION=${{ inputs.nextcloud_version }}
+          NEXTCLOUD_BASE_IMAGE=nextcloud:${{ inputs.nextcloud_version }}
         tags: scan/app:amd64
         cache-from: type=gha
         cache-to: type=gha,mode=max
@@ -42,7 +42,7 @@ runs:
         platforms: linux/arm64
         load: true
         build-args: |
-          NEXTCLOUD_VERSION=${{ inputs.nextcloud_version }}
+          NEXTCLOUD_BASE_IMAGE=nextcloud:${{ inputs.nextcloud_version }}
         tags: scan/app:arm64
         cache-from: type=gha
         cache-to: type=gha,mode=max

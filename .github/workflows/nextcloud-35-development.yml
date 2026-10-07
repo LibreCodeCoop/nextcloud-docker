@@ -1,52 +1,176 @@
-name: Build Nextcloud 35 Development Image
+name: Build Nextcloud Development Images
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * *'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.docker/app/Dockerfile.35'
+      - '.docker/app/config/**'
+      - '.github/workflows/nextcloud-35-development.yml'
+      - 'scripts/scan-images.sh'
+      - 'trivy.yaml'
   push:
     branches:
       - main
     paths:
-      - .docker/app/Dockerfile.35
-      - .docker/app/config/**
-      - .github/workflows/nextcloud-35-development.yml
+      - '.docker/app/Dockerfile.35'
+      - '.docker/app/config/**'
+      - '.github/workflows/nextcloud-35-development.yml'
+      - 'scripts/scan-images.sh'
+      - 'trivy.yaml'
 
 concurrency:
-  group: nextcloud-35-development
+  group: nextcloud-development-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}-app
 
 jobs:
   build:
-    name: Build and push app:35
+    name: Build and scan ${{ matrix.channel }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - channel: stable35
+            base_tag: 35-fpm
+            daily_url: https://download.nextcloud.com/server/daily/latest-stable35.tar.bz2
+            expected_major: '35'
+            primary_tag: '35'
+            alias_tag: stable35
+          - channel: main
+            base_tag: stable-fpm
+            daily_url: https://download.nextcloud.com/server/daily/latest-master.tar.bz2
+            expected_major: ''
+            primary_tag: main
+            alias_tag: ''
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Resolve upstream base image digest
+        id: base
+        shell: bash
+        env:
+          BASE_TAG: ${{ matrix.base_tag }}
+        run: |
+          set -euo pipefail
+          base_ref="nextcloud:${BASE_TAG}"
+          digest="$(docker buildx imagetools inspect "${base_ref}" | awk '$1 == "Digest:" { print $2; exit }')"
+          if [[ ! "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Could not resolve immutable digest for ${base_ref}" >&2
+            exit 1
+          fi
+          echo "image=nextcloud@${digest}" >> "${GITHUB_OUTPUT}"
+          echo "Resolved ${base_ref} to ${digest}"
+
+      - name: Build development app image (linux/amd64)
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .docker/app
+          file: .docker/app/Dockerfile.35
+          platforms: linux/amd64
+          load: true
+          build-args: |
+            NEXTCLOUD_BASE_IMAGE=${{ steps.base.outputs.image }}
+            NEXTCLOUD_DAILY_URL=${{ matrix.daily_url }}
+            EXPECTED_NEXTCLOUD_MAJOR=${{ matrix.expected_major }}
+          tags: scan/development-${{ matrix.channel }}:amd64
+          cache-from: type=gha,scope=development-${{ matrix.channel }}-amd64
+          cache-to: type=gha,mode=max,scope=development-${{ matrix.channel }}-amd64
+
+      - name: Build development app image (linux/arm64)
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .docker/app
+          file: .docker/app/Dockerfile.35
+          platforms: linux/arm64
+          load: true
+          build-args: |
+            NEXTCLOUD_BASE_IMAGE=${{ steps.base.outputs.image }}
+            NEXTCLOUD_DAILY_URL=${{ matrix.daily_url }}
+            EXPECTED_NEXTCLOUD_MAJOR=${{ matrix.expected_major }}
+          tags: scan/development-${{ matrix.channel }}:arm64
+          cache-from: type=gha,scope=development-${{ matrix.channel }}-arm64
+          cache-to: type=gha,mode=max,scope=development-${{ matrix.channel }}-arm64
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.74.0
+          cache: true
+
+      - name: Scan development images
+        shell: bash
+        env:
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          set -euo pipefail
+          TRIVY_REPORT_DIR="trivy-results/${CHANNEL}"             bash scripts/scan-images.sh               "app@linux/amd64=scan/development-${CHANNEL}:amd64"               "app@linux/arm64=scan/development-${CHANNEL}:arm64"
+
+      - name: Normalize repository name
+        if: github.event_name != 'pull_request'
+        id: repo_name
+        shell: bash
+        run: echo "value=${GITHUB_REPOSITORY,,}" >> "${GITHUB_OUTPUT}"
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Nextcloud 35 development image
-        uses: docker/build-push-action@v6
-        with:
-          context: .docker/app
-          file: .docker/app/Dockerfile.35
-          platforms: linux/amd64
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:35
-          cache-from: type=gha,scope=nextcloud-35-development
-          cache-to: type=gha,mode=max,scope=nextcloud-35-development
+      - name: Push scanned architecture images
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          APP_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app
+          CHANNEL: ${{ matrix.channel }}
+        run: |
+          set -euo pipefail
+          image_version="development-${CHANNEL}-${GITHUB_SHA}"
+
+          docker tag "scan/development-${CHANNEL}:amd64" "${APP_IMAGE}:${image_version}-amd64"
+          docker tag "scan/development-${CHANNEL}:arm64" "${APP_IMAGE}:${image_version}-arm64"
+
+          docker push "${APP_IMAGE}:${image_version}-amd64"
+          docker push "${APP_IMAGE}:${image_version}-arm64"
+
+      - name: Publish multi-platform development tags
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          APP_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app
+          CHANNEL: ${{ matrix.channel }}
+          PRIMARY_TAG: ${{ matrix.primary_tag }}
+          ALIAS_TAG: ${{ matrix.alias_tag }}
+        run: |
+          set -euo pipefail
+          image_version="development-${CHANNEL}-${GITHUB_SHA}"
+          tag_args=(--tag "${APP_IMAGE}:${PRIMARY_TAG}")
+          if [ -n "${ALIAS_TAG}" ]; then
+            tag_args+=(--tag "${APP_IMAGE}:${ALIAS_TAG}")
+          fi
+
+          docker buildx imagetools create             "${tag_args[@]}"             "${APP_IMAGE}:${image_version}-amd64"             "${APP_IMAGE}:${image_version}-arm64"

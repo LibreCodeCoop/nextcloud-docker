@@ -13,6 +13,7 @@ Commands:
   up                 Start the existing NCDD stack
   down               Stop the existing NCDD stack
   status             Show stack status
+  logs [SERVICE...]   Show stack logs without ANSI colors
   env                Show resolved NCDD environment
   doctor [--json]    Check Docker, Compose, app service, and Nextcloud
   shell [--as USER]  Open a shell in the app container
@@ -160,6 +161,9 @@ case "$command" in
     ;;
   status)
     compose ps "$@"
+    ;;
+  logs)
+    compose logs --no-color "$@"
     ;;
   shell)
     user=root

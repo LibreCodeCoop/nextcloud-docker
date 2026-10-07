@@ -19,6 +19,7 @@ The Makefile remains focused on repository maintenance tasks. It only exposes `t
 ```bash
 bin/ncdd up
 bin/ncdd status
+bin/ncdd logs app
 bin/ncdd doctor
 bin/ncdd doctor --json
 bin/ncdd shell
@@ -27,6 +28,8 @@ bin/ncdd down
 ```
 
 `runtime` resolves to `www-data` by default and can be overridden with `NCDD_RUNTIME_USER`.
+
+Use `bin/ncdd logs` for diagnostics instead of rebuilding the underlying Compose command. Optional service names are passed through to Compose.
 
 ## Git and app source
 

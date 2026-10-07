@@ -75,7 +75,37 @@ teardown() {
   [[ "$output" == *"Use bin/ncdd instead of calling docker compose directly."* ]]
 }
 
-@test "CLI is valid Bash" {
+@test "test --list exposes supported suites" {
+  run bash "$REPO_ROOT/bin/ncdd" test --list
+  [ "$status" -eq 0 ]
+  [ "$output" = phpunit\nbehat' ]
+}
+
+@test "phpunit test runs in the selected app without shell evaluation" {
+  run bash "$REPO_ROOT/bin/ncdd" test phpunit --app libresign -- -c tests/php/phpunit.xml tests/php/Unit/FooTest.php
+  [ "$status" -eq 0 ]
+  grep -q -- '--user root --workdir /var/www/html/apps-extra/libresign app vendor/bin/phpunit -c tests/php/phpunit.xml tests/php/Unit/FooTest.php' "$NCDD_TEST_LOG"
+}
+
+@test "behat test applies the Nextcloud runtime contract" {
+  run bash "$REPO_ROOT/bin/ncdd" test behat --app libresign -- features/file/validate.feature
+  [ "$status" -eq 0 ]
+  grep -q -- '--user www-data --workdir /var/www/html/apps-extra/libresign/tests/integration' "$NCDD_TEST_LOG"
+  grep -q -- '-e BEHAT_ROOT_DIR=/var/www/html' "$NCDD_TEST_LOG"
+  grep -q -- '-e BEHAT_RUN_AS=www-data' "$NCDD_TEST_LOG"
+  grep -q -- 'app vendor/bin/behat features/file/validate.feature' "$NCDD_TEST_LOG"
+}
+
+@test "test command rejects path traversal in app id" {
+  run bash "$REPO_ROOT/bin/ncdd" test phpunit --app ../libresign
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"invalid app id"* ]]
+}
+
+@test "CLI and test module are valid Bash" {
   run bash -n "$REPO_ROOT/bin/ncdd"
+  [ "$status" -eq 0 ]
+
+  run bash -n "$REPO_ROOT/lib/ncdd-test.sh"
   [ "$status" -eq 0 ]
 }

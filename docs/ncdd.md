@@ -54,8 +54,24 @@ The CLI is Bash, so its behavior is covered with Bats rather than ad-hoc shell a
 make test-ncdd
 ```
 
-The GitHub workflow pins the Bats setup action to an immutable commit SHA and pins the Bats version explicitly.
+The GitHub workflow pins the Bats setup action to an immutable commit SHA. The action selects its current default Bats version, avoiding a second version pin that would need separate maintenance.
+
+## Focused app tests
+
+NCDD exposes a small test API for test runners that require the existing Nextcloud runtime:
+
+```bash
+bin/ncdd test --list
+bin/ncdd test phpunit --app libresign -- -c tests/php/phpunit.xml tests/php/Unit/FooTest.php
+bin/ncdd test behat --app libresign -- features/file/validate.feature
+```
+
+The app source must already exist under `volumes/nextcloud/apps-extra/<app-id>`. NCDD does not clone repositories or receive Git credentials.
+
+Arguments after `--` are passed directly to the selected test runner as an argument array; NCDD does not evaluate them through a shell. PHPUnit runs as root by default and can be changed with `NCDD_PHPUNIT_USER`. Behat runs as the configured runtime user and supplies the Nextcloud integration environment used by app test suites.
+
+The initial API intentionally supports only PHPUnit and Behat. Frontend runners, scenario files, and project-specific configuration are not introduced until a concrete consumer requires them.
 
 ## Configuration policy
 
-PR #59 intentionally does not introduce `.ncdd.yml`. Environment-specific project contracts may become useful for test-suite definitions later, but adding another configuration format before there is a concrete consumer requirement would duplicate information already present in Compose and `.env`.
+NCDD still does not introduce `.ncdd.yml`. Test behavior uses explicit CLI arguments and narrowly scoped environment variables so the repository does not acquire a second configuration model before it is necessary.

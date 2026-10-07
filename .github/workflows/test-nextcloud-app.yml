@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       suite:
-        description: Test suite to run: phpunit or behat
+        description: 'Test suite to run: phpunit or behat'
         required: false
         default: phpunit
         type: string
@@ -91,7 +91,13 @@ jobs:
         run: |
           set -euo pipefail
           cp .env.example .env
-          sed -i             -e 's/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=nextcloud/'             -e 's/^NEXTCLOUD_ADMIN_USER=.*/NEXTCLOUD_ADMIN_USER=admin/'             -e 's/^NEXTCLOUD_ADMIN_PASSWORD=.*/NEXTCLOUD_ADMIN_PASSWORD=admin/'             -e 's/^NEXTCLOUD_TRUSTED_DOMAINS=.*/NEXTCLOUD_TRUSTED_DOMAINS=web localhost/'             -e 's/^TZ=.*/TZ=UTC/'             .env
+          sed -i \
+            -e 's/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=nextcloud/' \
+            -e 's/^NEXTCLOUD_ADMIN_USER=.*/NEXTCLOUD_ADMIN_USER=admin/' \
+            -e 's/^NEXTCLOUD_ADMIN_PASSWORD=.*/NEXTCLOUD_ADMIN_PASSWORD=admin/' \
+            -e 's/^NEXTCLOUD_TRUSTED_DOMAINS=.*/NEXTCLOUD_TRUSTED_DOMAINS=web localhost/' \
+            -e 's/^TZ=.*/TZ=UTC/' \
+            .env
           {
             echo 'POSTGRES_DB=nextcloud'
             echo 'POSTGRES_USER=nextcloud'

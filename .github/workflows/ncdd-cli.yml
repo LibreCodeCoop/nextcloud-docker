@@ -41,7 +41,7 @@ jobs:
           file-install: false
 
       - name: ShellCheck
-        run: shellcheck bin/ncdd lib/ncdd-test.sh
+        run: shellcheck -x -P SCRIPTDIR bin/ncdd lib/ncdd-test.sh
 
       - name: Test
         run: bats tests/ncdd.bats

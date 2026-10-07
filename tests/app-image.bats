@@ -121,6 +121,22 @@ ENTRYPOINT ["cgi-fcgi"]
 EOF
 }
 
+fcgi_status() {
+  docker run --rm -i \
+    --network "$NETWORK_NAME" \
+    -e REQUEST_METHOD=GET \
+    -e SCRIPT_NAME=/status.php \
+    -e SCRIPT_FILENAME=/var/www/html/status.php \
+    "$FCGI_CLIENT_IMAGE" \
+    -bind -connect app:9000 2>/dev/null
+}
+
+fpm_ready() {
+  local response
+  response=$(fcgi_status) || return 1
+  grep -Eq '"installed"[[:space:]]*:[[:space:]]*true' <<<"$response"
+}
+
 @test "app image installs Nextcloud and serves it through FPM" {
   echo "Testing $APP_IMAGE ($IMAGE_PLATFORM)"
 
@@ -175,16 +191,11 @@ EOF
 
   ensure_fcgi_client
 
-  run docker run --rm -i \
-    --network "$NETWORK_NAME" \
-    -e REQUEST_METHOD=GET \
-    -e SCRIPT_NAME=/status.php \
-    -e SCRIPT_FILENAME=/var/www/html/status.php \
-    "$FCGI_CLIENT_IMAGE" \
-    -bind -connect app:9000
+  wait_until "FPM readiness" fpm_ready
 
+  run fcgi_status
   if [ "$status" -ne 0 ]; then
-    fail_with_diagnostics "FPM did not accept the FastCGI request."
+    fail_with_diagnostics "FPM did not accept the FastCGI request after becoming ready."
   fi
   if ! grep -Eq '"installed"[[:space:]]*:[[:space:]]*true' <<<"$output"; then
     printf '%s\n' "$output" >&2

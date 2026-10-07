@@ -250,6 +250,12 @@ docker compose build --pull
 docker compose up -d
 ```
 
+## Development images
+
+The development workflow maintains rolling app images for Nextcloud stable35 and the upstream main branch. It builds amd64 and arm64 images, runs the same Trivy policy used by this repository, and only publishes images after the scan succeeds.
+
+The stable35 channel publishes tags `35` and `stable35`. The rolling upstream channel publishes `main`. These tags are separate from the normal runtime `latest` image.
+
 ## Vulnerability scanning
 
 Published `app` and `web` images are scanned for vulnerabilities. Contributors

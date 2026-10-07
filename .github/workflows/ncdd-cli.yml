@@ -1,0 +1,46 @@
+name: NCDD CLI
+
+on:
+  pull_request:
+    paths:
+      - 'bin/ncdd'
+      - 'tests/ncdd.bats'
+      - 'docs/ncdd.md'
+      - 'AGENTS.md'
+      - 'Makefile'
+      - '.github/workflows/ncdd-cli.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'bin/ncdd'
+      - 'tests/ncdd.bats'
+      - 'docs/ncdd.md'
+      - 'AGENTS.md'
+      - 'Makefile'
+      - '.github/workflows/ncdd-cli.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Bats
+        uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43 # 4.0.0
+        with:
+          bats-version: 1.14.0
+          support-install: false
+          assert-install: false
+          detik-install: false
+          file-install: false
+
+      - name: ShellCheck
+        run: shellcheck bin/ncdd
+
+      - name: Test
+        run: bats tests/ncdd.bats

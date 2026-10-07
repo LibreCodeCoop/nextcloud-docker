@@ -33,7 +33,7 @@ test-scan-images:
 	bash tests/test-scan-images.sh
 
 test-ncdd:
-	bash tests/test-ncdd.sh
+	bats tests/ncdd.bats
 
 scan-images:
 	@set -e; \

@@ -17,18 +17,18 @@ Languages avaliable: [pt-BR](docs/README_ptBR.md)
   - [Logs](#logs)
   - [Nextcloud Talk](#talk)
 
-## NCDD development interface
+## NCDD command interface
 
-For local app development, AI agents, CI, Dev Containers, and Codespaces, use the NCDD CLI instead of calling Docker Compose directly. The same interface is intended to run everywhere:
+For development automation, use the repository's `bin/ncdd` wrapper instead of reproducing Docker Compose details in CI, agents, or local instructions. It operates the existing `docker-compose.yml` and `docker-compose-postgres.yml`; it does not define a second stack.
 
 ```bash
-/path/to/nextcloud-docker/bin/ncdd up --nextcloud 35
-/path/to/nextcloud-docker/bin/ncdd doctor
-/path/to/nextcloud-docker/bin/ncdd shell
-/path/to/nextcloud-docker/bin/ncdd down
+bin/ncdd up
+bin/ncdd doctor
+bin/ncdd shell
+bin/ncdd down
 ```
 
-See [docs/ncdd.md](docs/ncdd.md) for the project contract, private-checkout workflow, diagnostics, and execution-user aliases.
+See [docs/ncdd.md](docs/ncdd.md) for the command contract and testing policy.
 
 ## Setup of docker
 

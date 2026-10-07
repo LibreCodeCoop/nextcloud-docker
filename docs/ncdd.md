@@ -1,64 +1,61 @@
-# NCDD development interface
+# NCDD command interface
 
-NCDD provides one interface for local development, AI agents, CI, Dev Containers, and Codespaces. Docker Compose is an implementation detail behind the `ncdd` command.
+NCDD should expose a stable command surface without creating a second development stack.
 
-## Quick start
+## Architecture
 
-From an app checkout, copy `.ncdd.yml.example` to `.ncdd.yml` and adjust the app id if necessary. Then run:
+`bin/ncdd` is a thin orchestration layer over the files that already define this repository:
 
-```bash
-/path/to/nextcloud-docker/bin/ncdd up --nextcloud 35
-/path/to/nextcloud-docker/bin/ncdd doctor
-/path/to/nextcloud-docker/bin/ncdd shell
-/path/to/nextcloud-docker/bin/ncdd down
-```
+- `docker-compose.yml`
+- `docker-compose-postgres.yml`
+- `.env` / `.env.example`
 
-`35` and `stable35` resolve to the same Nextcloud ref. The source checkout is mounted into the environment; private Git authentication never needs to be copied into a container.
+It must not duplicate the stack, own a second version source, or redefine image versions.
 
-## Project contract
+The Makefile remains focused on repository maintenance tasks. It only exposes `test-ncdd` as a convenience for running the CLI test suite; runtime behavior belongs to `bin/ncdd`.
 
-`.ncdd.yml` supports the following scalar settings:
-
-```yaml
-nextcloud:
-  default: stable35
-app:
-  id: libresign
-  source: .
-  path: /var/www/html/apps-extra/libresign
-  runtime_user: www-data
-services:
-  app: app
-  worker: dev-worker
-http:
-  port: 8080
-```
-
-Environment variables and command-line flags can override the contract. `NCDD_APP_IMAGE` can select a prebuilt Nextcloud development image explicitly.
-
-## Diagnostics
-
-`ncdd env` prints the fully resolved environment. `ncdd doctor` checks Docker, Compose, the app service, and `occ status`. Agents and CI should prefer `ncdd doctor --json`.
-
-## Execution users
-
-`ncdd exec` defaults to the development worker. Use aliases instead of implementation-specific usernames:
+## Commands
 
 ```bash
-ncdd exec -- composer dump-autoload
-ncdd exec --as runtime -- php occ status
-ncdd exec --as root -- id
+bin/ncdd up
+bin/ncdd status
+bin/ncdd doctor
+bin/ncdd doctor --json
+bin/ncdd shell
+bin/ncdd exec --as runtime -- php occ status
+bin/ncdd down
 ```
 
-`runtime` resolves to `app.runtime_user` (normally `www-data`).
+`runtime` resolves to `www-data` by default and can be overridden with `NCDD_RUNTIME_USER`.
 
-## Private branches and forks
+## Git and app source
 
-Check out private code on the host or in the CI workspace and mount it:
+NCDD does not fetch application repositories and does not receive GitHub credentials. Human users, CI, and agents perform the checkout outside the containers.
+
+Application worktrees should be placed under the existing Nextcloud tree:
+
+```text
+volumes/nextcloud/apps-extra/<app-id>
+```
+
+That keeps public and private branches identical from NCDD's point of view and avoids container-specific Git authentication.
+
+## Version source
+
+There is no NCDD version constant in the CLI. The Nextcloud image version is read from the existing `NEXTCLOUD_VERSION` environment variable, then `.env`, then `.env.example`.
+
+A separate NCDD release/version mechanism should only be introduced if the project actually starts publishing the CLI independently.
+
+## Testing
+
+The CLI is Bash, so its behavior is covered with Bats rather than ad-hoc shell assertions. CI also runs ShellCheck.
 
 ```bash
-gh repo clone OWNER/PRIVATE-FORK app
-ncdd --project-root app --source app up --nextcloud stable35
+make test-ncdd
 ```
 
-Do not run `git fetch` for private repositories from inside the runtime containers.
+The GitHub workflow pins the Bats setup action to an immutable commit SHA and pins the Bats version explicitly.
+
+## Configuration policy
+
+PR #59 intentionally does not introduce `.ncdd.yml`. Environment-specific project contracts may become useful for test-suite definitions later, but adding another configuration format before there is a concrete consumer requirement would duplicate information already present in Compose and `.env`.

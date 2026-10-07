@@ -26,6 +26,7 @@ Commands:
   up                    Start the disposable development stack
   down                  Stop and remove the stack
   status                Show compose service status
+  logs                  Show stack logs without ANSI colors
   env                   Show the resolved NCDD environment
   doctor [--json]       Validate Docker, stack and Nextcloud readiness
   shell                 Open a shell in the development worker
@@ -275,6 +276,9 @@ case "$COMMAND" in
     ;;
   status)
     compose ps "$@"
+    ;;
+  logs)
+    compose logs --no-color "$@"
     ;;
   doctor)
     doctor "$@"

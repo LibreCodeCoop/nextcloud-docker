@@ -1,0 +1,159 @@
+name: Test Nextcloud app with NCDD
+
+on:
+  workflow_call:
+    inputs:
+      nextcloud:
+        description: Nextcloud major or ref, for example 35 or stable35
+        required: false
+        default: stable35
+        type: string
+      suite:
+        description: phpunit, behat, frontend-lint, frontend-types, frontend-unit, frontend, or full
+        required: false
+        default: full
+        type: string
+      target:
+        description: Optional focused test target
+        required: false
+        default: ''
+        type: string
+      scenario:
+        description: Optional NCDD scenario file; takes precedence over suite
+        required: false
+        default: ''
+        type: string
+      ref:
+        description: App commit, branch, or tag to test
+        required: false
+        default: ''
+        type: string
+      config:
+        description: NCDD project contract path
+        required: false
+        default: .ncdd.yml
+        type: string
+      ncdd_ref:
+        description: NCDD ref to use
+        required: false
+        default: main
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout app
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref != '' && inputs.ref || github.sha }}
+
+      - name: Checkout NCDD
+        uses: actions/checkout@v4
+        with:
+          repository: LibreCodeCoop/nextcloud-docker
+          ref: ${{ inputs.ncdd_ref }}
+          path: .ncdd-runtime
+
+      - name: Setup NCDD
+        uses: ./.ncdd-runtime/.github/actions/setup
+
+      - name: Create default project contract
+        if: ${{ hashFiles(inputs.config) == '' }}
+        shell: bash
+        env:
+          CONFIG: ${{ inputs.config }}
+        run: |
+          set -euo pipefail
+          app_id="${GITHUB_REPOSITORY#*/}"
+          cat > "${CONFIG}" <<EOF
+          nextcloud:
+            default: ${{ inputs.nextcloud }}
+          app:
+            id: ${app_id}
+            source: .
+            path: /var/www/html/apps-extra/${app_id}
+            runtime_user: www-data
+          EOF
+
+      - name: Start NCDD
+        shell: bash
+        env:
+          NCDD_CONFIG_FILE: ${{ inputs.config }}
+        run: ncdd --project-root "${GITHUB_WORKSPACE}" up --nextcloud "${{ inputs.nextcloud }}"
+
+      - name: Wait for Nextcloud
+        shell: bash
+        env:
+          NCDD_CONFIG_FILE: ${{ inputs.config }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            if ncdd --project-root "${GITHUB_WORKSPACE}" doctor --json > ncdd-doctor.json; then
+              cat ncdd-doctor.json
+              exit 0
+            fi
+            sleep 2
+          done
+          ncdd --project-root "${GITHUB_WORKSPACE}" doctor --json || true
+          exit 1
+
+      - name: Run NCDD tests
+        shell: bash
+        env:
+          NCDD_CONFIG_FILE: ${{ inputs.config }}
+          SUITE: ${{ inputs.suite }}
+          TARGET: ${{ inputs.target }}
+          SCENARIO: ${{ inputs.scenario }}
+        run: |
+          set -euo pipefail
+          if [ -n "${SCENARIO}" ]; then
+            ncdd --project-root "${GITHUB_WORKSPACE}" scenario run "${SCENARIO}" 2>&1 | tee ncdd-test.log
+            exit ${PIPESTATUS[0]}
+          fi
+
+          case "${SUITE}" in
+            frontend-lint) args=(frontend lint) ;;
+            frontend-types) args=(frontend types) ;;
+            frontend-unit) args=(frontend unit) ;;
+            frontend) args=(frontend all) ;;
+            phpunit|behat|full) args=("${SUITE}") ;;
+            *) echo "Unsupported NCDD suite: ${SUITE}" >&2; exit 2 ;;
+          esac
+
+          if [ -n "${TARGET}" ]; then
+            args+=("${TARGET}")
+          fi
+
+          ncdd --project-root "${GITHUB_WORKSPACE}" test --json "${args[@]}"             > ncdd-test-result.json             2> >(tee ncdd-test.log >&2)
+
+      - name: Capture NCDD logs
+        if: always()
+        shell: bash
+        env:
+          NCDD_CONFIG_FILE: ${{ inputs.config }}
+        run: ncdd --project-root "${GITHUB_WORKSPACE}" logs > ncdd-stack.log 2>&1 || true
+
+      - name: Upload NCDD diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ncdd-${{ inputs.nextcloud }}-${{ inputs.suite }}
+          path: |
+            ncdd-doctor.json
+            ncdd-test-result.json
+            ncdd-test.log
+            ncdd-stack.log
+          if-no-files-found: ignore
+
+      - name: Stop NCDD
+        if: always()
+        shell: bash
+        env:
+          NCDD_CONFIG_FILE: ${{ inputs.config }}
+        run: ncdd --project-root "${GITHUB_WORKSPACE}" down -v || true

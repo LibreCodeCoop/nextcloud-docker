@@ -1,0 +1,14 @@
+name: Setup NCDD
+description: Add the checked-out NCDD runtime to PATH for a GitHub Actions job
+
+runs:
+  using: composite
+  steps:
+    - name: Expose NCDD CLI
+      shell: bash
+      run: |
+        set -euo pipefail
+        ncdd_root="$(cd "${GITHUB_ACTION_PATH}/../../.." && pwd)"
+        chmod +x "${ncdd_root}/bin/ncdd"
+        echo "${ncdd_root}/bin" >> "${GITHUB_PATH}"
+        echo "NCDD_ROOT=${ncdd_root}" >> "${GITHUB_ENV}"

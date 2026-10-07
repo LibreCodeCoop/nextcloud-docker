@@ -1,0 +1,52 @@
+name: NCDD contract
+
+on:
+  pull_request:
+    paths:
+      - 'bin/**'
+      - 'lib/**'
+      - 'tests/test-ncdd.sh'
+      - '.ncdd.yml.example'
+      - 'docker-compose.dev.yml'
+      - '.docker/dev-worker/**'
+      - '.github/actions/setup/**'
+      - '.github/workflows/test-nextcloud-app.yml'
+      - 'templates/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'bin/**'
+      - 'lib/**'
+      - 'tests/test-ncdd.sh'
+      - '.ncdd.yml.example'
+      - 'docker-compose.dev.yml'
+      - '.docker/dev-worker/**'
+      - '.github/actions/setup/**'
+      - '.github/workflows/test-nextcloud-app.yml'
+      - 'templates/**'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run CLI contract tests
+        run: bash tests/test-ncdd.sh
+
+      - name: Validate development compose
+        env:
+          NCDD_APP_SOURCE: ${{ github.workspace }}
+          NCDD_APP_PATH: /var/www/html/apps-extra/ncdd
+          NCDD_APP_IMAGE: ghcr.io/librecodecoop/nextcloud-docker-app:35
+        run: docker compose -f docker-compose.dev.yml config >/dev/null
+
+      - name: Validate Dev Container template
+        run: |
+          if [ -f templates/devcontainer/devcontainer.json ]; then
+            python -m json.tool templates/devcontainer/devcontainer.json >/dev/null
+          fi

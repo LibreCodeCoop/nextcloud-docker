@@ -24,6 +24,7 @@ For local app development, AI agents, CI, Dev Containers, and Codespaces, use th
 ```bash
 /path/to/nextcloud-docker/bin/ncdd up --nextcloud 35
 /path/to/nextcloud-docker/bin/ncdd doctor
+/path/to/nextcloud-docker/bin/ncdd test --list
 /path/to/nextcloud-docker/bin/ncdd shell
 /path/to/nextcloud-docker/bin/ncdd down
 ```

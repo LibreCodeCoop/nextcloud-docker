@@ -62,3 +62,44 @@ ncdd --project-root app --source app up --nextcloud stable35
 ```
 
 Do not run `git fetch` for private repositories from inside the runtime containers.
+
+## Test API
+
+Projects can define test working directories, commands, and users in `.ncdd.yml`. The CLI keeps the container details out of developer and agent instructions:
+
+```bash
+ncdd test --list
+ncdd test phpunit
+ncdd test phpunit tests/php/Unit/Service/FooTest.php
+ncdd test behat tests/integration/features/file/validate.feature
+ncdd test frontend lint
+ncdd test frontend types
+ncdd test full
+```
+
+`ncdd test --json ...` emits a compact machine-readable result while preserving the test output on stderr.
+
+The default PHPUnit command includes `-c tests/php/phpunit.xml`, and Behat defaults to the configured runtime user. This keeps bootstrap and permission details in the NCDD contract rather than in every CI job or agent prompt.
+
+## Reproducible scenarios
+
+Regression reproductions can be versioned as small YAML files:
+
+```yaml
+nextcloud: stable35
+setup:
+  - composer dump-autoload
+tests:
+  - phpunit tests/php/Unit/Service/Policy/ValidationEffectivePolicyServiceTest.php
+  - behat features/file/validate.feature
+  - frontend lint
+teardown: []
+```
+
+Run a scenario with:
+
+```bash
+ncdd scenario run .ncdd/scenarios/issue-1234.yml
+```
+
+NCDD owns environment startup and teardown, so an issue, PR, or security regression can use the same reproduction locally and in CI.

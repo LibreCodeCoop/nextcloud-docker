@@ -7,6 +7,10 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: ShellCheck app image acceptance test
+      shell: bash
+      run: shellcheck tests/test-app-image.sh
+
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
       with:
@@ -73,3 +77,11 @@ runs:
           'app@linux/arm64=scan/app:arm64' \
           'web@linux/amd64=scan/web:amd64' \
           'web@linux/arm64=scan/web:arm64'
+
+    - name: Runtime acceptance app image (linux/amd64)
+      shell: bash
+      run: bash tests/test-app-image.sh scan/app:amd64
+
+    - name: Runtime acceptance app image (linux/arm64)
+      shell: bash
+      run: bash tests/test-app-image.sh scan/app:arm64

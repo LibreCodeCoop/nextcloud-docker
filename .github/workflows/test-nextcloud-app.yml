@@ -1,0 +1,172 @@
+name: Test Nextcloud app with NCDD
+
+on:
+  workflow_call:
+    inputs:
+      suite:
+        description: 'Test suite to run: phpunit or behat'
+        required: false
+        default: phpunit
+        type: string
+      target:
+        description: Optional single test target passed to the selected runner
+        required: false
+        default: ''
+        type: string
+      ref:
+        description: Optional app ref to test; defaults to the caller SHA
+        required: false
+        default: ''
+        type: string
+      app_id:
+        description: Nextcloud app id; defaults to the caller repository name
+        required: false
+        default: ''
+        type: string
+      ncdd_ref:
+        description: nextcloud-docker ref containing the NCDD runtime
+        required: false
+        default: main
+        type: string
+      composer_install:
+        description: Install Composer dependencies before starting tests
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout NCDD
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: LibreCodeCoop/nextcloud-docker
+          ref: ${{ inputs.ncdd_ref }}
+          path: .ncdd-runtime
+          persist-credentials: false
+
+      - name: Resolve test contract
+        id: contract
+        shell: bash
+        env:
+          INPUT_APP_ID: ${{ inputs.app_id }}
+          INPUT_SUITE: ${{ inputs.suite }}
+        run: |
+          set -euo pipefail
+
+          app_id="${INPUT_APP_ID:-${GITHUB_REPOSITORY#*/}}"
+          if [[ ! "${app_id}" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "Invalid Nextcloud app id: ${app_id}" >&2
+            exit 2
+          fi
+
+          case "${INPUT_SUITE}" in
+            phpunit|behat) ;;
+            *)
+              echo "Unsupported NCDD suite: ${INPUT_SUITE}" >&2
+              exit 2
+              ;;
+          esac
+
+          echo "app_id=${app_id}" >> "${GITHUB_OUTPUT}"
+          echo "app_path=.ncdd-runtime/volumes/nextcloud/apps-extra/${app_id}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout app
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ inputs.ref != '' && inputs.ref || github.sha }}
+          path: ${{ steps.contract.outputs.app_path }}
+          persist-credentials: false
+
+      - name: Prepare NCDD CI environment
+        shell: bash
+        working-directory: .ncdd-runtime
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          sed -i \
+            -e 's/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=nextcloud/' \
+            -e 's/^NEXTCLOUD_ADMIN_USER=.*/NEXTCLOUD_ADMIN_USER=admin/' \
+            -e 's/^NEXTCLOUD_ADMIN_PASSWORD=.*/NEXTCLOUD_ADMIN_PASSWORD=admin/' \
+            -e 's/^NEXTCLOUD_TRUSTED_DOMAINS=.*/NEXTCLOUD_TRUSTED_DOMAINS=web localhost/' \
+            -e 's/^TZ=.*/TZ=UTC/' \
+            .env
+          {
+            echo 'POSTGRES_DB=nextcloud'
+            echo 'POSTGRES_USER=nextcloud'
+          } >> .env
+
+      - name: Install Composer dependencies
+        if: ${{ inputs.composer_install }}
+        shell: bash
+        working-directory: ${{ steps.contract.outputs.app_path }}
+        env:
+          SUITE: ${{ inputs.suite }}
+        run: |
+          set -euo pipefail
+          command -v composer >/dev/null 2>&1 || {
+            echo 'Composer is required when composer_install is enabled.' >&2
+            exit 2
+          }
+
+          composer install --no-interaction --prefer-dist
+
+          if [ "${SUITE}" = behat ] && [ -f tests/integration/composer.json ]; then
+            composer --working-dir=tests/integration install --no-interaction --prefer-dist
+          fi
+
+      - name: Start NCDD
+        shell: bash
+        run: bash .ncdd-runtime/bin/ncdd up
+
+      - name: Wait for Nextcloud
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 90); do
+            if bash .ncdd-runtime/bin/ncdd doctor --json; then
+              exit 0
+            fi
+            sleep 2
+          done
+          bash .ncdd-runtime/bin/ncdd doctor --json || true
+          exit 1
+
+      - name: Enable app
+        shell: bash
+        env:
+          APP_ID: ${{ steps.contract.outputs.app_id }}
+        run: bash .ncdd-runtime/bin/ncdd exec --as runtime -- php occ app:enable "${APP_ID}"
+
+      - name: Run app tests
+        shell: bash
+        env:
+          APP_ID: ${{ steps.contract.outputs.app_id }}
+          SUITE: ${{ inputs.suite }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          args=(test "${SUITE}" --app "${APP_ID}")
+          if [ -n "${TARGET}" ]; then
+            args+=(-- "${TARGET}")
+          fi
+          bash .ncdd-runtime/bin/ncdd "${args[@]}"
+
+      - name: Show NCDD diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          bash .ncdd-runtime/bin/ncdd doctor --json || true
+          bash .ncdd-runtime/bin/ncdd logs app postgres || true
+
+      - name: Stop NCDD
+        if: always()
+        shell: bash
+        run: bash .ncdd-runtime/bin/ncdd down -v || true

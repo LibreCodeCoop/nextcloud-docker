@@ -69,6 +69,12 @@ teardown() {
   grep -q 'up -d redis postgres app web cron' "$NCDD_TEST_LOG"
 }
 
+@test "logs uses the existing compose stack" {
+  run bash "$REPO_ROOT/bin/ncdd" logs app
+  [ "$status" -eq 0 ]
+  grep -q -- 'logs --no-color app' "$NCDD_TEST_LOG"
+}
+
 @test "agent help keeps Docker Compose as an implementation detail" {
   run bash "$REPO_ROOT/bin/ncdd" help ai
   [ "$status" -eq 0 ]

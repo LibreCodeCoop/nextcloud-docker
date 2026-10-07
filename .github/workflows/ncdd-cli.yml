@@ -10,6 +10,10 @@ on:
       - 'AGENTS.md'
       - 'Makefile'
       - '.github/workflows/ncdd-cli.yml'
+      - '.github/workflows/test-nextcloud-app.yml'
+      - 'templates/workflows/ncdd-tests.yml'
+      - '.github/workflows/test-nextcloud-app.yml'
+      - 'templates/workflows/ncdd-tests.yml'
   push:
     branches:
       - main

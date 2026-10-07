@@ -19,6 +19,7 @@ The Makefile remains focused on repository maintenance tasks. It only exposes `t
 ```bash
 bin/ncdd up
 bin/ncdd status
+bin/ncdd logs app
 bin/ncdd doctor
 bin/ncdd doctor --json
 bin/ncdd shell
@@ -27,6 +28,8 @@ bin/ncdd down
 ```
 
 `runtime` resolves to `www-data` by default and can be overridden with `NCDD_RUNTIME_USER`.
+
+Use `bin/ncdd logs` for diagnostics instead of rebuilding the underlying Compose command. Optional service names are passed through to Compose.
 
 ## Git and app source
 
@@ -75,3 +78,35 @@ The initial API intentionally supports only PHPUnit and Behat. Frontend runners,
 ## Configuration policy
 
 NCDD still does not introduce `.ncdd.yml`. Test behavior uses explicit CLI arguments and narrowly scoped environment variables so the repository does not acquire a second configuration model before it is necessary.
+
+## GitHub Actions consumer workflow
+
+The reusable workflow `.github/workflows/test-nextcloud-app.yml` lets an app repository run the same NCDD test contract in GitHub Actions.
+
+It intentionally follows the current NCDD scope:
+
+- PHPUnit and Behat only;
+- the app is checked out under `volumes/nextcloud/apps-extra/<app-id>`;
+- no `.ncdd.yml`;
+- no alternate Compose stack;
+- no scenario or frontend mini-framework.
+
+A consumer can call it with:
+
+```yaml
+jobs:
+  ncdd:
+    uses: LibreCodeCoop/nextcloud-docker/.github/workflows/test-nextcloud-app.yml@main
+    with:
+      suite: phpunit
+```
+
+`app_id` defaults to the caller repository name and can be overridden when the repository name differs from the Nextcloud app id. `target` is a single runner argument and is passed without shell evaluation.
+
+The workflow can install Composer dependencies before starting NCDD. This bootstrap runs in the GitHub-hosted workspace, while Nextcloud and the selected test runner execute through NCDD. Set `composer_install: false` when the caller provides dependencies by another mechanism.
+
+The workflow uses the Nextcloud version already defined by this repository. It does not introduce a second Nextcloud version input.
+
+A ready-to-copy caller example is available at `templates/workflows/ncdd-tests.yml`.
+
+Dev Containers and Codespaces are deliberately outside this increment. They should only be added after the reusable CI contract has been exercised by a real app repository.

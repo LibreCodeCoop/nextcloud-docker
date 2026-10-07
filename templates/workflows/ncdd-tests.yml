@@ -1,0 +1,28 @@
+name: NCDD app tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Test suite
+        required: true
+        default: phpunit
+        type: choice
+        options:
+          - phpunit
+          - behat
+      target:
+        description: Optional single test target
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  ncdd:
+    uses: LibreCodeCoop/nextcloud-docker/.github/workflows/test-nextcloud-app.yml@main
+    with:
+      suite: ${{ inputs.suite || 'phpunit' }}
+      target: ${{ inputs.target || '' }}

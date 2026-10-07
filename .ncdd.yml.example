@@ -1,0 +1,15 @@
+nextcloud:
+  default: stable35
+
+app:
+  id: myapp
+  source: .
+  path: /var/www/html/apps-extra/myapp
+  runtime_user: www-data
+
+services:
+  app: app
+  worker: dev-worker
+
+http:
+  port: 8080

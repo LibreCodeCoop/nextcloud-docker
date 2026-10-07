@@ -1,0 +1,293 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NCDD_VERSION="0.1.0"
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+NCDD_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
+PROJECT_ROOT=${NCDD_PROJECT_ROOT:-$PWD}
+CONFIG_FILE=${NCDD_CONFIG_FILE:-}
+NEXTCLOUD_INPUT=${NCDD_NEXTCLOUD:-}
+APP_SOURCE=${NCDD_APP_SOURCE:-}
+APP_ID=${NCDD_APP_ID:-}
+
+usage() {
+  cat <<'USAGE'
+Usage: ncdd [global options] <command> [options]
+
+Global options:
+  --project-root PATH   Consumer repository root (default: current directory)
+  --config PATH         NCDD config file (default: <project>/.ncdd.yml)
+  --nextcloud REF       Nextcloud ref/major (35, stable35, main)
+  --source PATH         App source checkout to mount
+  --app-id ID           Nextcloud app id
+  --version             Show NCDD version
+
+Commands:
+  up                    Start the disposable development stack
+  down                  Stop and remove the stack
+  status                Show compose service status
+  env                   Show the resolved NCDD environment
+  doctor [--json]       Validate Docker, stack and Nextcloud readiness
+  shell                 Open a shell in the development worker
+  exec [--as USER] -- COMMAND...
+                        Execute a command in the development worker
+  help [ai]             Show help; `help ai` prints the agent contract
+USAGE
+}
+
+agent_help() {
+  cat <<'EOF_AGENT'
+NCDD agent contract
+- Use `ncdd up`, `ncdd status`, `ncdd doctor --json`, `ncdd exec`, `ncdd test`, and `ncdd down`.
+- Do not call docker compose directly unless debugging NCDD itself.
+- Do not install PHP, Composer, Node, or Nextcloud on the host.
+- Keep private Git authentication on the host/CI checkout; mount the checkout with `--source`.
+- Use `--as runtime` for commands that must run as the Nextcloud runtime user.
+EOF_AGENT
+}
+
+fail() {
+  printf 'ncdd: %s\n' "$*" >&2
+  exit 1
+}
+
+yaml_get() {
+  local key=$1 file=$2
+  [ -f "$file" ] || return 1
+  awk -v wanted="$key" '
+    function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
+    function unquote(s) {
+      s=trim(s)
+      if ((substr(s,1,1)=="\"" && substr(s,length(s),1)=="\"") || (substr(s,1,1)=="\047" && substr(s,length(s),1)=="\047")) {
+        return substr(s,2,length(s)-2)
+      }
+      return s
+    }
+    /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
+    {
+      match($0, /^[ ]*/); spaces=RLENGTH
+      level=int(spaces/2)+1
+      line=substr($0, spaces+1)
+      pos=index(line, ":")
+      if (!pos) next
+      k=trim(substr(line,1,pos-1))
+      v=trim(substr(line,pos+1))
+      keys[level]=k
+      for (i=level+1;i<=12;i++) delete keys[i]
+      path=keys[1]
+      for (i=2;i<=level;i++) path=path "." keys[i]
+      if (path==wanted && v!="") { print unquote(v); exit }
+    }
+  ' "$file"
+}
+
+abs_path() {
+  local path=$1 base=$2
+  if [[ "$path" = /* ]]; then
+    printf '%s\n' "$path"
+  else
+    (cd "$base" && cd "$path" && pwd)
+  fi
+}
+
+normalize_nextcloud() {
+  local input=${1:-}
+  case "$input" in
+    '') printf 'stable35\n' ;;
+    stable[0-9]*) printf '%s\n' "$input" ;;
+    [0-9]*) printf 'stable%s\n' "$input" ;;
+    main|master) printf '%s\n' "$input" ;;
+    *) fail "unsupported Nextcloud ref: $input" ;;
+  esac
+}
+
+nextcloud_major() {
+  case "$1" in
+    stable[0-9]*) printf '%s\n' "${1#stable}" ;;
+    [0-9]*) printf '%s\n' "$1" ;;
+    main|master) printf 'main\n' ;;
+    *) fail "cannot determine Nextcloud major from $1" ;;
+  esac
+}
+
+sanitize_project_name() {
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9_-]+/-/g; s/^-+//; s/-+$//'
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --project-root) PROJECT_ROOT=${2:?}; shift 2 ;;
+    --config) CONFIG_FILE=${2:?}; shift 2 ;;
+    --nextcloud) NEXTCLOUD_INPUT=${2:?}; shift 2 ;;
+    --source) APP_SOURCE=${2:?}; shift 2 ;;
+    --app-id) APP_ID=${2:?}; shift 2 ;;
+    --version) printf 'ncdd %s\n' "$NCDD_VERSION"; exit 0 ;;
+    -h|--help) usage; exit 0 ;;
+    --) shift; break ;;
+    -*) break ;;
+    *) break ;;
+  esac
+done
+
+COMMAND=${1:-help}
+[ "$#" -gt 0 ] && shift || true
+
+PROJECT_ROOT=$(abs_path "$PROJECT_ROOT" "$PWD")
+if [ -z "$CONFIG_FILE" ]; then
+  CONFIG_FILE="$PROJECT_ROOT/.ncdd.yml"
+elif [[ "$CONFIG_FILE" != /* ]]; then
+  CONFIG_FILE="$PROJECT_ROOT/$CONFIG_FILE"
+fi
+
+cfg() { yaml_get "$1" "$CONFIG_FILE" 2>/dev/null || true; }
+
+[ -n "$NEXTCLOUD_INPUT" ] || NEXTCLOUD_INPUT=$(cfg nextcloud.default)
+NEXTCLOUD_REF=$(normalize_nextcloud "$NEXTCLOUD_INPUT")
+NEXTCLOUD_MAJOR=$(nextcloud_major "$NEXTCLOUD_REF")
+
+[ -n "$APP_ID" ] || APP_ID=$(cfg app.id)
+[ -n "$APP_ID" ] || APP_ID=$(basename "$PROJECT_ROOT")
+[ -n "$APP_SOURCE" ] || APP_SOURCE=$(cfg app.source)
+[ -n "$APP_SOURCE" ] || APP_SOURCE='.'
+APP_SOURCE=$(abs_path "$APP_SOURCE" "$PROJECT_ROOT")
+APP_PATH=$(cfg app.path)
+[ -n "$APP_PATH" ] || APP_PATH="/var/www/html/apps-extra/$APP_ID"
+RUNTIME_USER=$(cfg app.runtime_user)
+[ -n "$RUNTIME_USER" ] || RUNTIME_USER=www-data
+APP_SERVICE=$(cfg services.app)
+[ -n "$APP_SERVICE" ] || APP_SERVICE=app
+WORKER_SERVICE=$(cfg services.worker)
+[ -n "$WORKER_SERVICE" ] || WORKER_SERVICE=dev-worker
+COMPOSE_FILE=$(cfg compose.file)
+[ -n "$COMPOSE_FILE" ] || COMPOSE_FILE="$NCDD_ROOT/docker-compose.dev.yml"
+if [[ "$COMPOSE_FILE" != /* ]]; then COMPOSE_FILE="$PROJECT_ROOT/$COMPOSE_FILE"; fi
+HTTP_PORT=$(cfg http.port)
+[ -n "$HTTP_PORT" ] || HTTP_PORT=${NCDD_HTTP_PORT:-8080}
+PROJECT_NAME=$(sanitize_project_name "ncdd-${APP_ID}-${NEXTCLOUD_MAJOR}")
+APP_IMAGE=${NCDD_APP_IMAGE:-ghcr.io/librecodecoop/nextcloud-docker-app:${NEXTCLOUD_MAJOR}}
+
+export NCDD_PROJECT_ROOT="$PROJECT_ROOT"
+export NCDD_APP_SOURCE="$APP_SOURCE"
+export NCDD_APP_ID="$APP_ID"
+export NCDD_APP_PATH="$APP_PATH"
+export NCDD_RUNTIME_USER="$RUNTIME_USER"
+export NCDD_NEXTCLOUD_REF="$NEXTCLOUD_REF"
+export NCDD_NEXTCLOUD_MAJOR="$NEXTCLOUD_MAJOR"
+export NCDD_HTTP_PORT="$HTTP_PORT"
+export NCDD_APP_IMAGE="$APP_IMAGE"
+
+compose() {
+  docker compose --project-name "$PROJECT_NAME" -f "$COMPOSE_FILE" "$@"
+}
+
+resolve_user() {
+  case "$1" in
+    runtime) printf '%s\n' "$RUNTIME_USER" ;;
+    developer|root) printf 'root\n' ;;
+    *) printf '%s\n' "$1" ;;
+  esac
+}
+
+print_env() {
+  cat <<EOF_ENV
+NCDD_PROJECT_NAME=$PROJECT_NAME
+NCDD_PROJECT_ROOT=$PROJECT_ROOT
+NCDD_CONFIG_FILE=$CONFIG_FILE
+NCDD_NEXTCLOUD_REF=$NEXTCLOUD_REF
+NCDD_NEXTCLOUD_MAJOR=$NEXTCLOUD_MAJOR
+NCDD_APP_ID=$APP_ID
+NCDD_APP_SOURCE=$APP_SOURCE
+NCDD_APP_PATH=$APP_PATH
+NCDD_RUNTIME_USER=$RUNTIME_USER
+NCDD_HTTP_PORT=$HTTP_PORT
+NCDD_APP_IMAGE=$APP_IMAGE
+NCDD_COMPOSE_FILE=$COMPOSE_FILE
+EOF_ENV
+}
+
+doctor() {
+  local json=false
+  if [ "${1:-}" = "--json" ]; then json=true; shift; fi
+  [ "$#" -eq 0 ] || fail "doctor accepts only --json"
+
+  local docker_ok=false compose_ok=false app_running=false nc_ready=false
+  command -v docker >/dev/null 2>&1 && docker_ok=true
+  if $docker_ok && docker compose version >/dev/null 2>&1; then compose_ok=true; fi
+  if $compose_ok && compose ps --status running --services 2>/dev/null | grep -qx "$APP_SERVICE"; then app_running=true; fi
+  if $app_running && compose exec -T --user "$RUNTIME_USER" "$APP_SERVICE" php occ status --output=json >/dev/null 2>&1; then nc_ready=true; fi
+
+  local ready=false
+  if $docker_ok && $compose_ok && $app_running && $nc_ready; then ready=true; fi
+
+  if $json; then
+    printf '{"ready":%s,"docker":%s,"compose":%s,"nextcloud":{"ref":"%s","major":"%s","ready":%s},"app":{"id":"%s","source":"%s","path":"%s","running":%s}}\n' \
+      "$ready" "$docker_ok" "$compose_ok" "$NEXTCLOUD_REF" "$NEXTCLOUD_MAJOR" "$nc_ready" \
+      "$APP_ID" "$APP_SOURCE" "$APP_PATH" "$app_running"
+  else
+    printf '%-20s %s\n' 'Docker' "$docker_ok"
+    printf '%-20s %s\n' 'Docker Compose' "$compose_ok"
+    printf '%-20s %s\n' 'Nextcloud ref' "$NEXTCLOUD_REF"
+    printf '%-20s %s\n' 'Nextcloud ready' "$nc_ready"
+    printf '%-20s %s\n' 'App' "$APP_ID"
+    printf '%-20s %s\n' 'App source' "$APP_SOURCE"
+    printf '%-20s %s\n' 'App running' "$app_running"
+  fi
+  $ready
+}
+
+case "$COMMAND" in
+  help)
+    if [ "${1:-}" = ai ]; then agent_help; else usage; fi
+    ;;
+  env)
+    print_env
+    ;;
+  up)
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --nextcloud)
+          NEXTCLOUD_REF=$(normalize_nextcloud "${2:?}")
+          NEXTCLOUD_MAJOR=$(nextcloud_major "$NEXTCLOUD_REF")
+          PROJECT_NAME=$(sanitize_project_name "ncdd-${APP_ID}-${NEXTCLOUD_MAJOR}")
+          APP_IMAGE=${NCDD_APP_IMAGE:-ghcr.io/librecodecoop/nextcloud-docker-app:${NEXTCLOUD_MAJOR}}
+          export NCDD_NEXTCLOUD_REF NCDD_NEXTCLOUD_MAJOR NCDD_APP_IMAGE
+          shift 2
+          ;;
+        --source)
+          APP_SOURCE=$(abs_path "${2:?}" "$PROJECT_ROOT")
+          export NCDD_APP_SOURCE="$APP_SOURCE"
+          shift 2
+          ;;
+        *) fail "unknown up option: $1" ;;
+      esac
+    done
+    compose up -d --remove-orphans
+    ;;
+  down)
+    compose down --remove-orphans "$@"
+    ;;
+  status)
+    compose ps "$@"
+    ;;
+  doctor)
+    doctor "$@"
+    ;;
+  shell)
+    user=root
+    if [ "${1:-}" = "--as" ]; then user=$(resolve_user "${2:?}"); shift 2; fi
+    [ "$#" -eq 0 ] || fail "unknown shell arguments: $*"
+    compose exec --user "$user" "$WORKER_SERVICE" bash
+    ;;
+  exec)
+    user=root
+    if [ "${1:-}" = "--as" ]; then user=$(resolve_user "${2:?}"); shift 2; fi
+    if [ "${1:-}" = "--" ]; then shift; fi
+    [ "$#" -gt 0 ] || fail "exec requires a command"
+    tty=()
+    if [ ! -t 0 ] || [ ! -t 1 ]; then tty=(-T); fi
+    compose exec "${tty[@]}" --user "$user" "$WORKER_SERVICE" "$@"
+    ;;
+  *)
+    fail "unknown command: $COMMAND"
+    ;;
+esac

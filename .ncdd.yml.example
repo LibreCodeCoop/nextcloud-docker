@@ -13,3 +13,14 @@ services:
 
 http:
   port: 8080
+tests:
+  phpunit:
+    command: vendor/bin/phpunit -c tests/php/phpunit.xml
+    working_directory: /var/www/html/apps-extra/myapp
+    user: root
+  behat:
+    command: vendor/bin/behat
+    working_directory: /var/www/html/apps-extra/myapp/tests/integration
+    user: runtime
+  frontend:
+    working_directory: /workspace/app

@@ -31,6 +31,8 @@ Commands:
   shell                 Open a shell in the development worker
   exec [--as USER] -- COMMAND...
                         Execute a command in the development worker
+  test [--list|SUITE]   Run project-defined test suites
+  scenario run FILE     Run a reproducible setup/test/teardown scenario
   help [ai]             Show help; `help ai` prints the agent contract
 USAGE
 }
@@ -235,6 +237,11 @@ doctor() {
   $ready
 }
 
+if [ -f "$NCDD_ROOT/lib/ncdd-tests.sh" ]; then
+  # shellcheck source=../lib/ncdd-tests.sh
+  source "$NCDD_ROOT/lib/ncdd-tests.sh"
+fi
+
 case "$COMMAND" in
   help)
     if [ "${1:-}" = ai ]; then agent_help; else usage; fi
@@ -277,6 +284,12 @@ case "$COMMAND" in
     if [ "${1:-}" = "--as" ]; then user=$(resolve_user "${2:?}"); shift 2; fi
     [ "$#" -eq 0 ] || fail "unknown shell arguments: $*"
     compose exec --user "$user" "$WORKER_SERVICE" bash
+    ;;
+  test)
+    ncdd_test "$@"
+    ;;
+  scenario)
+    ncdd_scenario "$@"
     ;;
   exec)
     user=root

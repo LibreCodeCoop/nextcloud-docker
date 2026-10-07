@@ -1,0 +1,9 @@
+nextcloud: stable35
+setup:
+  - composer dump-autoload
+tests:
+  - phpunit tests/php/Unit/Service/Policy/ValidationEffectivePolicyServiceTest.php
+  - behat features/file/validate.feature
+  - frontend lint
+  - frontend types
+teardown: []

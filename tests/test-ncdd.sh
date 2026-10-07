@@ -42,7 +42,96 @@ out=$(cd "$tmp/project" && "$repo_root/bin/ncdd" env)
 grep -q '^NCDD_NEXTCLOUD_REF=stable35$' <<<"$out"
 grep -q '^NCDD_NEXTCLOUD_MAJOR=35$' <<<"$out"
 grep -q '^NCDD_APP_ID=demo$' <<<"$out"
-grep -q '^NCDD_HTTP_PORT=8888$' <<<"$out"
+grep -q '^NCDD_HTTP_PORT=8888
+
+json=$(cd "$tmp/project" && "$repo_root/bin/ncdd" doctor --json)
+grep -q '"ready":true' <<<"$json"
+grep -q '"ref":"stable35"' <<<"$json"
+
+(cd "$tmp/project" && "$repo_root/bin/ncdd" exec --as runtime -- php -v)
+grep -q -- '--user www-data dev-worker php -v' "$tmp/docker.log"
+
+help=$("$repo_root/bin/ncdd" help ai)
+grep -q 'Do not call docker compose directly' <<<"$help"
+
+list=$(cd "$tmp/project" && "$repo_root/bin/ncdd" test --list)
+grep -q '^phpunit <<<"$list"
+grep -q '^full <<<"$list"
+
+(cd "$tmp/project" && "$repo_root/bin/ncdd" test phpunit tests/php/Unit/FooTest.php)
+grep -q 'dev-worker sh -lc' "$tmp/docker.log"
+grep -q 'vendor/bin/phpunit' "$tmp/docker.log"
+
+(cd "$tmp/project" && "$repo_root/bin/ncdd" test frontend lint)
+grep -q 'node-worker sh -lc' "$tmp/docker.log"
+
+json_test=$(cd "$tmp/project" && "$repo_root/bin/ncdd" test --json phpunit tests/php/Unit/FooTest.php 2>/dev/null)
+grep -q '"suite":"phpunit"' <<<"$json_test"
+grep -q '"status":0' <<<"$json_test"
+
+bash -n "$repo_root/bin/ncdd"
+bash -n "$repo_root/lib/ncdd-tests.sh"
+echo 'ncdd CLI tests passed' <<<"$out"
+grep -q '^NCDD_APP_IMAGE=ghcr.io/librecodecoop/nextcloud-docker-app:35
+
+json=$(cd "$tmp/project" && "$repo_root/bin/ncdd" doctor --json)
+grep -q '"ready":true' <<<"$json"
+grep -q '"ref":"stable35"' <<<"$json"
+
+(cd "$tmp/project" && "$repo_root/bin/ncdd" exec --as runtime -- php -v)
+grep -q -- '--user www-data dev-worker php -v' "$tmp/docker.log"
+
+help=$("$repo_root/bin/ncdd" help ai)
+grep -q 'Do not call docker compose directly' <<<"$help"
+
+list=$(cd "$tmp/project" && "$repo_root/bin/ncdd" test --list)
+grep -q '^phpunit <<<"$list"
+grep -q '^full <<<"$list"
+
+(cd "$tmp/project" && "$repo_root/bin/ncdd" test phpunit tests/php/Unit/FooTest.php)
+grep -q 'dev-worker sh -lc' "$tmp/docker.log"
+grep -q 'vendor/bin/phpunit' "$tmp/docker.log"
+
+(cd "$tmp/project" && "$repo_root/bin/ncdd" test frontend lint)
+grep -q 'node-worker sh -lc' "$tmp/docker.log"
+
+json_test=$(cd "$tmp/project" && "$repo_root/bin/ncdd" test --json phpunit tests/php/Unit/FooTest.php 2>/dev/null)
+grep -q '"suite":"phpunit"' <<<"$json_test"
+grep -q '"status":0' <<<"$json_test"
+
+bash -n "$repo_root/bin/ncdd"
+bash -n "$repo_root/lib/ncdd-tests.sh"
+echo 'ncdd CLI tests passed' <<<"$out"
+grep -q '^NCDD_DEV_WORKER_IMAGE=ghcr.io/librecodecoop/nextcloud-docker-dev-worker:35
+
+json=$(cd "$tmp/project" && "$repo_root/bin/ncdd" doctor --json)
+grep -q '"ready":true' <<<"$json"
+grep -q '"ref":"stable35"' <<<"$json"
+
+(cd "$tmp/project" && "$repo_root/bin/ncdd" exec --as runtime -- php -v)
+grep -q -- '--user www-data dev-worker php -v' "$tmp/docker.log"
+
+help=$("$repo_root/bin/ncdd" help ai)
+grep -q 'Do not call docker compose directly' <<<"$help"
+
+list=$(cd "$tmp/project" && "$repo_root/bin/ncdd" test --list)
+grep -q '^phpunit <<<"$list"
+grep -q '^full <<<"$list"
+
+(cd "$tmp/project" && "$repo_root/bin/ncdd" test phpunit tests/php/Unit/FooTest.php)
+grep -q 'dev-worker sh -lc' "$tmp/docker.log"
+grep -q 'vendor/bin/phpunit' "$tmp/docker.log"
+
+(cd "$tmp/project" && "$repo_root/bin/ncdd" test frontend lint)
+grep -q 'node-worker sh -lc' "$tmp/docker.log"
+
+json_test=$(cd "$tmp/project" && "$repo_root/bin/ncdd" test --json phpunit tests/php/Unit/FooTest.php 2>/dev/null)
+grep -q '"suite":"phpunit"' <<<"$json_test"
+grep -q '"status":0' <<<"$json_test"
+
+bash -n "$repo_root/bin/ncdd"
+bash -n "$repo_root/lib/ncdd-tests.sh"
+echo 'ncdd CLI tests passed' <<<"$out"
 
 json=$(cd "$tmp/project" && "$repo_root/bin/ncdd" doctor --json)
 grep -q '"ready":true' <<<"$json"

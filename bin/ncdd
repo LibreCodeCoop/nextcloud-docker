@@ -168,6 +168,7 @@ HTTP_PORT=$(cfg http.port)
 [ -n "$HTTP_PORT" ] || HTTP_PORT=${NCDD_HTTP_PORT:-8080}
 PROJECT_NAME=$(sanitize_project_name "ncdd-${APP_ID}-${NEXTCLOUD_MAJOR}")
 APP_IMAGE=${NCDD_APP_IMAGE:-ghcr.io/librecodecoop/nextcloud-docker-app:${NEXTCLOUD_MAJOR}}
+DEV_WORKER_IMAGE=${NCDD_DEV_WORKER_IMAGE:-ghcr.io/librecodecoop/nextcloud-docker-dev-worker:${NEXTCLOUD_MAJOR}}
 
 export NCDD_PROJECT_ROOT="$PROJECT_ROOT"
 export NCDD_APP_SOURCE="$APP_SOURCE"
@@ -178,6 +179,7 @@ export NCDD_NEXTCLOUD_REF="$NEXTCLOUD_REF"
 export NCDD_NEXTCLOUD_MAJOR="$NEXTCLOUD_MAJOR"
 export NCDD_HTTP_PORT="$HTTP_PORT"
 export NCDD_APP_IMAGE="$APP_IMAGE"
+export NCDD_DEV_WORKER_IMAGE="$DEV_WORKER_IMAGE"
 
 compose() {
   docker compose --project-name "$PROJECT_NAME" -f "$COMPOSE_FILE" "$@"
@@ -204,6 +206,7 @@ NCDD_APP_PATH=$APP_PATH
 NCDD_RUNTIME_USER=$RUNTIME_USER
 NCDD_HTTP_PORT=$HTTP_PORT
 NCDD_APP_IMAGE=$APP_IMAGE
+NCDD_DEV_WORKER_IMAGE=$DEV_WORKER_IMAGE
 NCDD_COMPOSE_FILE=$COMPOSE_FILE
 EOF_ENV
 }
@@ -258,7 +261,8 @@ case "$COMMAND" in
           NEXTCLOUD_MAJOR=$(nextcloud_major "$NEXTCLOUD_REF")
           PROJECT_NAME=$(sanitize_project_name "ncdd-${APP_ID}-${NEXTCLOUD_MAJOR}")
           APP_IMAGE=${NCDD_APP_IMAGE:-ghcr.io/librecodecoop/nextcloud-docker-app:${NEXTCLOUD_MAJOR}}
-          export NCDD_NEXTCLOUD_REF NCDD_NEXTCLOUD_MAJOR NCDD_APP_IMAGE
+          DEV_WORKER_IMAGE=${NCDD_DEV_WORKER_IMAGE:-ghcr.io/librecodecoop/nextcloud-docker-dev-worker:${NEXTCLOUD_MAJOR}}
+          export NCDD_NEXTCLOUD_REF NCDD_NEXTCLOUD_MAJOR NCDD_APP_IMAGE NCDD_DEV_WORKER_IMAGE
           shift 2
           ;;
         --source)

@@ -136,3 +136,24 @@ ncdd down
 ```
 
 Codespaces consumes the same Dev Container definition; it is not a separate NCDD implementation.
+
+## Prebuilt development images
+
+NCDD publishes version-addressable app and development-worker images so local runs and CI do not rebuild the PHP/Composer worker on every invocation.
+
+The runtime resolves these tags automatically:
+
+```text
+34 / stable34 -> ghcr.io/librecodecoop/nextcloud-docker-app:34
+                 ghcr.io/librecodecoop/nextcloud-docker-dev-worker:34
+
+35 / stable35 -> ghcr.io/librecodecoop/nextcloud-docker-app:35
+                 ghcr.io/librecodecoop/nextcloud-docker-dev-worker:35
+
+main          -> ghcr.io/librecodecoop/nextcloud-docker-app:main
+                 ghcr.io/librecodecoop/nextcloud-docker-dev-worker:main
+```
+
+Stable 35 is built daily from Nextcloud's `latest-stable35` archive, while `main` follows `latest-master`. The release-backed runtime image also publishes numeric and `stableN` aliases. Both amd64 and arm64 are built with GitHub Actions cache.
+
+Set `NCDD_APP_IMAGE` or `NCDD_DEV_WORKER_IMAGE` only when an explicit custom image is required.

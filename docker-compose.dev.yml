@@ -55,11 +55,7 @@ services:
       - ${NCDD_APP_SOURCE:?set NCDD_APP_SOURCE}:${NCDD_APP_PATH:?set NCDD_APP_PATH}:ro
 
   dev-worker:
-    build:
-      context: .
-      dockerfile: .docker/dev-worker/Dockerfile
-      args:
-        NCDD_APP_IMAGE: ${NCDD_APP_IMAGE:-ghcr.io/librecodecoop/nextcloud-docker-app:35}
+    image: ${NCDD_DEV_WORKER_IMAGE:-ghcr.io/librecodecoop/nextcloud-docker-dev-worker:35}
     entrypoint: ["/bin/sh", "-c", "trap : TERM INT; sleep infinity & wait"]
     working_dir: ${NCDD_APP_PATH:?set NCDD_APP_PATH}
     environment:

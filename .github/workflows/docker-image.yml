@@ -35,6 +35,7 @@ jobs:
             exit 1
           fi
           echo "value=$version" >> "$GITHUB_OUTPUT"
+          echo "major=${version%%-*}" >> "$GITHUB_OUTPUT"
 
       - name: Build and scan runtime images
         uses: ./.github/actions/build-and-scan
@@ -145,15 +146,38 @@ jobs:
           APP_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app
           WEB_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-web
           IMAGE_VERSION: sha-${{ github.sha }}
+          NEXTCLOUD_MAJOR: ${{ steps.nextcloud_version.outputs.major }}
         run: |
           set -euo pipefail
 
           docker buildx imagetools create \
             --tag "${APP_IMAGE}:latest" \
+            --tag "${APP_IMAGE}:${NEXTCLOUD_MAJOR}" \
+            --tag "${APP_IMAGE}:stable${NEXTCLOUD_MAJOR}" \
             "${APP_IMAGE}:${IMAGE_VERSION}-amd64" \
             "${APP_IMAGE}:${IMAGE_VERSION}-arm64"
 
           docker buildx imagetools create \
             --tag "${WEB_IMAGE}:latest" \
+            --tag "${WEB_IMAGE}:${NEXTCLOUD_MAJOR}" \
+            --tag "${WEB_IMAGE}:stable${NEXTCLOUD_MAJOR}" \
             "${WEB_IMAGE}:${IMAGE_VERSION}-amd64" \
             "${WEB_IMAGE}:${IMAGE_VERSION}-arm64"
+
+      - name: Build and publish NCDD development worker
+        env:
+          APP_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app
+          DEV_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-dev-worker
+          NEXTCLOUD_MAJOR: ${{ steps.nextcloud_version.outputs.major }}
+        run: |
+          set -euo pipefail
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --file .docker/dev-worker/Dockerfile \
+            --build-arg "NCDD_APP_IMAGE=${APP_IMAGE}:${NEXTCLOUD_MAJOR}" \
+            --tag "${DEV_IMAGE}:${NEXTCLOUD_MAJOR}" \
+            --tag "${DEV_IMAGE}:stable${NEXTCLOUD_MAJOR}" \
+            --cache-from type=gha,scope=ncdd-dev-worker-${NEXTCLOUD_MAJOR} \
+            --cache-to type=gha,mode=max,scope=ncdd-dev-worker-${NEXTCLOUD_MAJOR} \
+            --push \
+            .

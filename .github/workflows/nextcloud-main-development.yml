@@ -1,9 +1,9 @@
-name: Build Nextcloud 35 Development Image
+name: Build Nextcloud Main Development Image
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '17 3 * * *'
+    - cron: '47 3 * * *'
   push:
     branches:
       - main
@@ -11,10 +11,10 @@ on:
       - .docker/app/Dockerfile.daily
       - .docker/app/config/**
       - .docker/dev-worker/**
-      - .github/workflows/nextcloud-35-development.yml
+      - .github/workflows/nextcloud-main-development.yml
 
 concurrency:
-  group: nextcloud-35-development
+  group: nextcloud-main-development
   cancel-in-progress: true
 
 env:
@@ -24,7 +24,7 @@ env:
 
 jobs:
   build:
-    name: Build and push stable35 development images
+    name: Build and push main development images
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -47,7 +47,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push stable35 app image
+      - name: Build and push main app image
         uses: docker/build-push-action@v6
         with:
           context: .docker/app
@@ -55,15 +55,12 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           build-args: |
-            NEXTCLOUD_DAILY_URL=https://download.nextcloud.com/server/daily/latest-stable35.tar.bz2
-            EXPECTED_NEXTCLOUD_MAJOR=35
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.APP_IMAGE }}:35
-            ${{ env.REGISTRY }}/${{ env.APP_IMAGE }}:stable35
-          cache-from: type=gha,scope=nextcloud-stable35-development
-          cache-to: type=gha,mode=max,scope=nextcloud-stable35-development
+            NEXTCLOUD_DAILY_URL=https://download.nextcloud.com/server/daily/latest-master.tar.bz2
+          tags: ${{ env.REGISTRY }}/${{ env.APP_IMAGE }}:main
+          cache-from: type=gha,scope=nextcloud-main-development
+          cache-to: type=gha,mode=max,scope=nextcloud-main-development
 
-      - name: Build and push stable35 development worker
+      - name: Build and push main development worker
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -71,9 +68,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           build-args: |
-            NCDD_APP_IMAGE=${{ env.REGISTRY }}/${{ env.APP_IMAGE }}:35
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.DEV_IMAGE }}:35
-            ${{ env.REGISTRY }}/${{ env.DEV_IMAGE }}:stable35
-          cache-from: type=gha,scope=ncdd-stable35-worker
-          cache-to: type=gha,mode=max,scope=ncdd-stable35-worker
+            NCDD_APP_IMAGE=${{ env.REGISTRY }}/${{ env.APP_IMAGE }}:main
+          tags: ${{ env.REGISTRY }}/${{ env.DEV_IMAGE }}:main
+          cache-from: type=gha,scope=ncdd-main-worker
+          cache-to: type=gha,mode=max,scope=ncdd-main-worker

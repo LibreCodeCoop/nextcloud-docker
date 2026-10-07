@@ -149,6 +149,26 @@ Immutable web image:
 ghcr.io/librecodecoop/nextcloud-docker-web@sha256:<web-image-digest>
 ```
 
+## Runtime acceptance
+
+The app image has a runtime acceptance test based on the same behavioral checks used by the official Nextcloud container projects.
+
+The test operates on an already-built local image. It does not rebuild the image and does not use the repository deployment Compose files:
+
+```bash
+make test-app-image APP_IMAGE=scan/app:amd64
+```
+
+For a local build of the current app image followed by the same acceptance test:
+
+```bash
+make test-current-app-image
+```
+
+The acceptance test creates an isolated Docker network and PostgreSQL container, starts the image with Nextcloud autoinstall variables, waits for the installation, runs `occ status` and `occ check`, and sends a FastCGI request through the FPM runtime. Test-created resources are removed on success and failure.
+
+CI must run this test against the exact locally loaded app images produced by the build step. Runtime acceptance is a publication gate alongside vulnerability scanning; a separate deployment-stack test is not required for this contract.
+
 ## Implementation boundary
 
 This document defines the target contract. It does not by itself migrate the current Dockerfiles, workflows, or historical tags.

@@ -1,7 +1,8 @@
 COMPOSE ?= docker compose
 GARAGES3_COMPOSE_FILE ?= docker-compose-garages3.yml
+APP_TEST_IMAGE ?= nextcloud-app:acceptance
 
-.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test-hooks test-scan-images test-ncdd scan-images
+.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test-hooks test-scan-images test-ncdd test-app-image test-current-app-image scan-images
 
 up-garages3:
 	$(COMPOSE) -f $(GARAGES3_COMPOSE_FILE) up -d garage
@@ -34,6 +35,18 @@ test-scan-images:
 
 test-ncdd:
 	bats tests/ncdd.bats
+
+test-app-image:
+	@test -n "$(APP_IMAGE)" || { echo 'Usage: make test-app-image APP_IMAGE=<local-image>' >&2; exit 2; }
+	bash tests/test-app-image.sh "$(APP_IMAGE)"
+
+test-current-app-image:
+	@set -e; \
+	  version="$$(sed -n 's/^NEXTCLOUD_VERSION=//p' .env.example | head -n 1)"; \
+	  test -n "$$version" || { echo 'NEXTCLOUD_VERSION is missing from .env.example' >&2; exit 1; }; \
+	  docker buildx build --platform linux/amd64 --load --tag "$(APP_TEST_IMAGE)" \
+	    --build-arg "NEXTCLOUD_VERSION=$$version" --file .docker/app/Dockerfile .docker/app; \
+	  $(MAKE) test-app-image APP_IMAGE="$(APP_TEST_IMAGE)"
 
 scan-images:
 	@set -e; \

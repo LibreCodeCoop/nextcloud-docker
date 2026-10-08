@@ -10,6 +10,10 @@ on:
       - 'scripts/scan-images.sh'
       - 'trivy.yaml'
       - '.github/workflows/nextcloud-development.yml'
+      - 'scripts/resolve-nextcloud-upstream.sh'
+      - 'scripts/push-master-architecture.sh'
+      - 'scripts/publish-master-manifest.sh'
+      - 'tests/nextcloud-development-image.bats'
   push:
     branches:
       - main
@@ -19,6 +23,10 @@ on:
       - 'scripts/scan-images.sh'
       - 'trivy.yaml'
       - '.github/workflows/nextcloud-development.yml'
+      - 'scripts/resolve-nextcloud-upstream.sh'
+      - 'scripts/push-master-architecture.sh'
+      - 'scripts/publish-master-manifest.sh'
+      - 'tests/nextcloud-development-image.bats'
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
@@ -75,41 +83,7 @@ jobs:
       - name: Resolve upstream inputs
         id: upstream
         shell: bash
-        run: |
-          set -euo pipefail
-
-          token="$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/nextcloud:pull" | jq -r '.token')"
-          test -n "${token}"
-
-          headers="$(mktemp)"
-          curl -fsSLI \
-            -H "Authorization: Bearer ${token}" \
-            -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
-            -D "${headers}" \
-            -o /dev/null \
-            "https://registry-1.docker.io/v2/library/nextcloud/manifests/${NEXTCLOUD_BASE_TAG}"
-
-          base_digest="$(awk 'BEGIN { IGNORECASE=1 } /^docker-content-digest:/ { gsub("\\r", "", $2); print $2; exit }' "${headers}")"
-          if [[ ! "${base_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-            echo "Could not resolve nextcloud:${NEXTCLOUD_BASE_TAG} digest" >&2
-            exit 1
-          fi
-
-          archive_name="$(basename "${NEXTCLOUD_DAILY_URL}")"
-          checksum_file="$(mktemp)"
-          curl -fsSL "${NEXTCLOUD_DAILY_URL}.sha512" -o "${checksum_file}"
-          source_sha512="$(awk -v archive="${archive_name}" '$2 == archive { print $1; exit }' "${checksum_file}")"
-          if [[ ! "${source_sha512}" =~ ^[0-9a-fA-F]{128}$ ]]; then
-            echo "Could not resolve SHA-512 for ${archive_name}" >&2
-            exit 1
-          fi
-
-          created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-
-          echo "base_image=nextcloud@${base_digest}" >> "${GITHUB_OUTPUT}"
-          echo "base_digest=${base_digest}" >> "${GITHUB_OUTPUT}"
-          echo "source_sha512=${source_sha512,,}" >> "${GITHUB_OUTPUT}"
-          echo "created=${created}" >> "${GITHUB_OUTPUT}"
+        run: scripts/resolve-nextcloud-upstream.sh "${NEXTCLOUD_BASE_TAG}" "${NEXTCLOUD_DAILY_URL}" >> "${GITHUB_OUTPUT}"
 
       - name: Build Nextcloud master app image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -166,13 +140,7 @@ jobs:
       - name: Push validated architecture image
         if: github.event_name != 'pull_request'
         shell: bash
-        env:
-          ARCH: ${{ matrix.arch }}
-        run: |
-          set -euo pipefail
-          staging_tag="master-fpm-${GITHUB_SHA}-${ARCH}"
-          docker tag "scan/master:${ARCH}" "${APP_IMAGE}:${staging_tag}"
-          docker push "${APP_IMAGE}:${staging_tag}"
+        run: scripts/push-master-architecture.sh "${APP_IMAGE}" "scan/master:${{ matrix.arch }}" "${GITHUB_SHA}" "${{ matrix.arch }}"
 
   publish:
     name: Publish master-fpm manifest
@@ -197,13 +165,4 @@ jobs:
 
       - name: Publish multi-platform master-fpm
         shell: bash
-        run: |
-          set -euo pipefail
-          docker buildx imagetools create \
-            --tag "${APP_IMAGE}:master-fpm" \
-            "${APP_IMAGE}:master-fpm-${GITHUB_SHA}-amd64" \
-            "${APP_IMAGE}:master-fpm-${GITHUB_SHA}-arm64"
-
-      - name: Inspect published manifest
-        shell: bash
-        run: docker buildx imagetools inspect "${APP_IMAGE}:master-fpm"
+        run: scripts/publish-master-manifest.sh "${APP_IMAGE}" "${GITHUB_SHA}"

@@ -39,7 +39,7 @@ ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
 
 COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
-RUN install-php-extensions bz2 imagick \
+RUN install-php-extensions bz2 \
     && rm /usr/local/bin/install-php-extensions
 
 COPY config/php.ini /usr/local/etc/php/conf.d/

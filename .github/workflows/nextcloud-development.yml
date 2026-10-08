@@ -1,4 +1,4 @@
-name: Validate Nextcloud master image
+name: Validate and publish Nextcloud master image
 
 on:
   pull_request:
@@ -10,6 +10,10 @@ on:
       - 'scripts/scan-images.sh'
       - 'trivy.yaml'
       - '.github/workflows/nextcloud-development.yml'
+      - 'scripts/resolve-nextcloud-upstream.sh'
+      - 'scripts/push-master-architecture.sh'
+      - 'scripts/publish-master-manifest.sh'
+      - 'tests/nextcloud-development-image.bats'
   push:
     branches:
       - main
@@ -19,19 +23,56 @@ on:
       - 'scripts/scan-images.sh'
       - 'trivy.yaml'
       - '.github/workflows/nextcloud-development.yml'
+      - 'scripts/resolve-nextcloud-upstream.sh'
+      - 'scripts/push-master-architecture.sh'
+      - 'scripts/publish-master-manifest.sh'
+      - 'tests/nextcloud-development-image.bats'
+  schedule:
+    - cron: '17 3 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: nextcloud-master-validation-${{ github.ref }}
+  group: nextcloud-master-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  APP_IMAGE: ghcr.io/librecodecoop/nextcloud-docker-app
+  NEXTCLOUD_DAILY_URL: https://download.nextcloud.com/server/daily/latest-master.tar.bz2
+  NEXTCLOUD_BASE_TAG: stable-fpm
+
 jobs:
+  script-tests:
+    name: Test development image scripts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Bats
+        uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43 # 4.0.0
+        with:
+          support-install: false
+          assert-install: false
+          detik-install: false
+          file-install: false
+
+      - name: Test development image scripts
+        run: bats tests/nextcloud-development-image.bats
+
   validate:
+    needs:
+      - script-tests
     name: master-fpm / linux/${{ matrix.arch }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     strategy:
       fail-fast: false
@@ -62,6 +103,11 @@ jobs:
           detik-install: false
           file-install: false
 
+      - name: Resolve upstream inputs
+        id: upstream
+        shell: bash
+        run: bash scripts/resolve-nextcloud-upstream.sh "${NEXTCLOUD_BASE_TAG}" "${NEXTCLOUD_DAILY_URL}" >> "${GITHUB_OUTPUT}"
+
       - name: Build Nextcloud master app image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
@@ -69,9 +115,19 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           load: true
           build-args: |
-            NEXTCLOUD_BASE_IMAGE=nextcloud:stable-fpm
+            NEXTCLOUD_BASE_IMAGE=${{ steps.upstream.outputs.base_image }}
             NEXTCLOUD_SOURCE=daily
-            NEXTCLOUD_DAILY_URL=https://download.nextcloud.com/server/daily/latest-master.tar.bz2
+            NEXTCLOUD_DAILY_URL=${{ env.NEXTCLOUD_DAILY_URL }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ steps.upstream.outputs.created }}
+            org.opencontainers.image.version=master-fpm
+            coop.librecode.nextcloud.channel=master
+            coop.librecode.nextcloud.source=${{ env.NEXTCLOUD_DAILY_URL }}
+            coop.librecode.nextcloud.source.sha512=${{ steps.upstream.outputs.source_sha512 }}
+            coop.librecode.nextcloud.base.digest=${{ steps.upstream.outputs.base_digest }}
+            coop.librecode.runtime.variant=fpm
           tags: scan/master:${{ matrix.arch }}
           cache-from: type=gha,scope=master-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=master-${{ matrix.arch }}
@@ -95,3 +151,41 @@ jobs:
         env:
           APP_IMAGE: scan/master:${{ matrix.arch }}
         run: bats tests/app-image.bats
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push validated architecture image
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: bash scripts/push-master-architecture.sh "${APP_IMAGE}" "scan/master:${{ matrix.arch }}" "${GITHUB_SHA}" "${{ matrix.arch }}"
+
+  publish:
+    name: Publish master-fpm manifest
+    if: github.event_name != 'pull_request'
+    needs:
+      - validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish multi-platform master-fpm
+        shell: bash
+        run: bash scripts/publish-master-manifest.sh "${APP_IMAGE}" "${GITHUB_SHA}"

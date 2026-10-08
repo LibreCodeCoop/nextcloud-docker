@@ -166,6 +166,20 @@ The repository Compose environment keeps `NEXTCLOUD_VERSION` as its user-facing 
 
 The app image remains LibreSign-ready while being generic across Nextcloud versions. It keeps repository-level runtime requirements such as Poppler, UTF-8 locale support, and the PHP bz2 extension, but does not reinstall extensions already supplied by the official Nextcloud base image such as Imagick. Dependabot owns Docker and GitHub Actions updates in this repository. Renovate is deliberately restricted to custom regex-managed values that Dependabot cannot see, currently the explicit Trivy binary version used by CI. The two bots must not manage the same dependency.
 
+## Development publication
+
+The rolling Nextcloud Server `master` image is published as:
+
+```
+ghcr.io/librecodecoop/nextcloud-docker-app:master-fpm
+```
+
+Pull requests build, scan, and run runtime acceptance for both amd64 and arm64 without publishing. Pushes to `main`, the daily scheduled run, and manual workflow dispatches may publish only after both architectures pass those gates.
+
+The workflow resolves the official `nextcloud:stable-fpm` base to an OCI digest and records that digest in image metadata. It also records the SHA-512 of the exact upstream `latest-master.tar.bz2` artifact used for the build. This provides exact upstream artifact traceability without inventing a Nextcloud Git commit that the daily archive does not expose.
+
+Architecture-specific staging tags are implementation details used to assemble the multi-platform manifest. The public development-channel contract is `:master-fpm`.
+
 ## Runtime acceptance
 
 The app image has a runtime acceptance test based on the same behavioral checks used by the official Nextcloud container projects.
@@ -192,8 +206,8 @@ This document defines the target contract and the generic app-image foundation n
 
 Remaining work in #47 must continue incrementally. In particular:
 
-- publish development images from the generic foundation using the documented `:master-fpm` contract;
-- add the remaining OCI traceability metadata to published images;
+- keep the `:master-fpm` publication workflow aligned with the generic app-image foundation;
+- extend traceability metadata when upstream exposes stronger revision identifiers;
 - keep LibreSign-specific behavior out of the generic runtime;
 - preserve scan and runtime-acceptance gates before publication;
 - preserve the existing Compose environment until a replacement is explicitly validated.

@@ -78,7 +78,18 @@ jobs:
         run: |
           set -euo pipefail
 
-          base_digest="$(docker buildx imagetools inspect "nextcloud:${NEXTCLOUD_BASE_TAG}" | awk '/^Digest:/ { print $2; exit }')"
+          token="$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/nextcloud:pull" | jq -r '.token')"
+          test -n "${token}"
+
+          headers="$(mktemp)"
+          curl -fsSLI \
+            -H "Authorization: Bearer ${token}" \
+            -H 'Accept: application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json' \
+            -D "${headers}" \
+            -o /dev/null \
+            "https://registry-1.docker.io/v2/library/nextcloud/manifests/${NEXTCLOUD_BASE_TAG}"
+
+          base_digest="$(awk 'BEGIN { IGNORECASE=1 } /^docker-content-digest:/ { gsub("\\r", "", $2); print $2; exit }' "${headers}")"
           if [[ ! "${base_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
             echo "Could not resolve nextcloud:${NEXTCLOUD_BASE_TAG} digest" >&2
             exit 1

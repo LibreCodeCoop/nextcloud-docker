@@ -44,7 +44,30 @@ env:
   NEXTCLOUD_BASE_TAG: stable-fpm
 
 jobs:
+  script-tests:
+    name: Test development image scripts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Bats
+        uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43 # 4.0.0
+        with:
+          support-install: false
+          assert-install: false
+          detik-install: false
+          file-install: false
+
+      - name: Test development image scripts
+        run: bats tests/nextcloud-development-image.bats
+
   validate:
+    needs:
+      - script-tests
     name: master-fpm / linux/${{ matrix.arch }}
     runs-on: ubuntu-latest
     permissions:
@@ -83,7 +106,7 @@ jobs:
       - name: Resolve upstream inputs
         id: upstream
         shell: bash
-        run: scripts/resolve-nextcloud-upstream.sh "${NEXTCLOUD_BASE_TAG}" "${NEXTCLOUD_DAILY_URL}" >> "${GITHUB_OUTPUT}"
+        run: bash scripts/resolve-nextcloud-upstream.sh "${NEXTCLOUD_BASE_TAG}" "${NEXTCLOUD_DAILY_URL}" >> "${GITHUB_OUTPUT}"
 
       - name: Build Nextcloud master app image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -140,7 +163,7 @@ jobs:
       - name: Push validated architecture image
         if: github.event_name != 'pull_request'
         shell: bash
-        run: scripts/push-master-architecture.sh "${APP_IMAGE}" "scan/master:${{ matrix.arch }}" "${GITHUB_SHA}" "${{ matrix.arch }}"
+        run: bash scripts/push-master-architecture.sh "${APP_IMAGE}" "scan/master:${{ matrix.arch }}" "${GITHUB_SHA}" "${{ matrix.arch }}"
 
   publish:
     name: Publish master-fpm manifest
@@ -165,4 +188,4 @@ jobs:
 
       - name: Publish multi-platform master-fpm
         shell: bash
-        run: scripts/publish-master-manifest.sh "${APP_IMAGE}" "${GITHUB_SHA}"
+        run: bash scripts/publish-master-manifest.sh "${APP_IMAGE}" "${GITHUB_SHA}"

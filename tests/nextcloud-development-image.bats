@@ -46,7 +46,7 @@ fi
 EOF
   chmod +x "$BIN_DIR/curl"
 
-  run scripts/resolve-nextcloud-upstream.sh stable-fpm https://download.nextcloud.com/server/daily/latest-master.tar.bz2
+  run bash scripts/resolve-nextcloud-upstream.sh stable-fpm https://download.nextcloud.com/server/daily/latest-master.tar.bz2
 
   [ "$status" -eq 0 ]
   [[ "$output" == *"base_image=nextcloud@sha256:"* ]]
@@ -73,7 +73,7 @@ fi
 EOF
   chmod +x "$BIN_DIR/curl"
 
-  run scripts/resolve-nextcloud-upstream.sh stable-fpm https://download.nextcloud.com/server/daily/latest-master.tar.bz2
+  run bash scripts/resolve-nextcloud-upstream.sh stable-fpm https://download.nextcloud.com/server/daily/latest-master.tar.bz2
 
   [ "$status" -ne 0 ]
   [[ "$output" == *"Could not resolve nextcloud:stable-fpm digest"* ]]
@@ -86,7 +86,7 @@ printf '%s\n' "\$*" >> "$TEST_ROOT/docker.log"
 EOF
   chmod +x "$BIN_DIR/docker"
 
-  run scripts/push-master-architecture.sh ghcr.io/example/app scan/master:amd64 abc123 amd64
+  run bash scripts/push-master-architecture.sh ghcr.io/example/app scan/master:amd64 abc123 amd64
 
   [ "$status" -eq 0 ]
   grep -Fx "tag scan/master:amd64 ghcr.io/example/app:master-fpm-abc123-amd64" "$TEST_ROOT/docker.log"
@@ -94,7 +94,7 @@ EOF
 }
 
 @test "architecture publication rejects unsupported architectures" {
-  run scripts/push-master-architecture.sh ghcr.io/example/app scan/master:s390x abc123 s390x
+  run bash scripts/push-master-architecture.sh ghcr.io/example/app scan/master:s390x abc123 s390x
 
   [ "$status" -eq 2 ]
   [[ "$output" == *"Unsupported architecture: s390x"* ]]
@@ -107,7 +107,7 @@ printf '%s\n' "\$*" >> "$TEST_ROOT/docker.log"
 EOF
   chmod +x "$BIN_DIR/docker"
 
-  run scripts/publish-master-manifest.sh ghcr.io/example/app abc123
+  run bash scripts/publish-master-manifest.sh ghcr.io/example/app abc123
 
   [ "$status" -eq 0 ]
   grep -Fx "buildx imagetools create --tag ghcr.io/example/app:master-fpm ghcr.io/example/app:master-fpm-abc123-amd64 ghcr.io/example/app:master-fpm-abc123-arm64" "$TEST_ROOT/docker.log"

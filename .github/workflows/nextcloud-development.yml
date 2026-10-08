@@ -1,4 +1,4 @@
-name: Validate Nextcloud master image
+name: Validate and publish Nextcloud master image
 
 on:
   pull_request:
@@ -19,19 +19,29 @@ on:
       - 'scripts/scan-images.sh'
       - 'trivy.yaml'
       - '.github/workflows/nextcloud-development.yml'
+  schedule:
+    - cron: '17 3 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: nextcloud-master-validation-${{ github.ref }}
+  group: nextcloud-master-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  APP_IMAGE: ghcr.io/librecodecoop/nextcloud-docker-app
+  NEXTCLOUD_DAILY_URL: https://download.nextcloud.com/server/daily/latest-master.tar.bz2
+  NEXTCLOUD_BASE_TAG: stable-fpm
 
 jobs:
   validate:
     name: master-fpm / linux/${{ matrix.arch }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     strategy:
       fail-fast: false
@@ -62,6 +72,34 @@ jobs:
           detik-install: false
           file-install: false
 
+      - name: Resolve upstream inputs
+        id: upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base_digest="$(docker buildx imagetools inspect "nextcloud:${NEXTCLOUD_BASE_TAG}" | awk '/^Digest:/ { print $2; exit }')"
+          if [[ ! "${base_digest}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Could not resolve nextcloud:${NEXTCLOUD_BASE_TAG} digest" >&2
+            exit 1
+          fi
+
+          archive_name="$(basename "${NEXTCLOUD_DAILY_URL}")"
+          checksum_file="$(mktemp)"
+          curl -fsSL "${NEXTCLOUD_DAILY_URL}.sha512" -o "${checksum_file}"
+          source_sha512="$(awk -v archive="${archive_name}" '$2 == archive { print $1; exit }' "${checksum_file}")"
+          if [[ ! "${source_sha512}" =~ ^[0-9a-fA-F]{128}$ ]]; then
+            echo "Could not resolve SHA-512 for ${archive_name}" >&2
+            exit 1
+          fi
+
+          created="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+
+          echo "base_image=nextcloud@${base_digest}" >> "${GITHUB_OUTPUT}"
+          echo "base_digest=${base_digest}" >> "${GITHUB_OUTPUT}"
+          echo "source_sha512=${source_sha512,,}" >> "${GITHUB_OUTPUT}"
+          echo "created=${created}" >> "${GITHUB_OUTPUT}"
+
       - name: Build Nextcloud master app image
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
@@ -69,9 +107,19 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           load: true
           build-args: |
-            NEXTCLOUD_BASE_IMAGE=nextcloud:stable-fpm
+            NEXTCLOUD_BASE_IMAGE=${{ steps.upstream.outputs.base_image }}
             NEXTCLOUD_SOURCE=daily
-            NEXTCLOUD_DAILY_URL=https://download.nextcloud.com/server/daily/latest-master.tar.bz2
+            NEXTCLOUD_DAILY_URL=${{ env.NEXTCLOUD_DAILY_URL }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.created=${{ steps.upstream.outputs.created }}
+            org.opencontainers.image.version=master-fpm
+            coop.librecode.nextcloud.channel=master
+            coop.librecode.nextcloud.source=${{ env.NEXTCLOUD_DAILY_URL }}
+            coop.librecode.nextcloud.source.sha512=${{ steps.upstream.outputs.source_sha512 }}
+            coop.librecode.nextcloud.base.digest=${{ steps.upstream.outputs.base_digest }}
+            coop.librecode.runtime.variant=fpm
           tags: scan/master:${{ matrix.arch }}
           cache-from: type=gha,scope=master-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=master-${{ matrix.arch }}
@@ -95,3 +143,56 @@ jobs:
         env:
           APP_IMAGE: scan/master:${{ matrix.arch }}
         run: bats tests/app-image.bats
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push validated architecture image
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          staging_tag="master-fpm-${GITHUB_SHA}-${ARCH}"
+          docker tag "scan/master:${ARCH}" "${APP_IMAGE}:${staging_tag}"
+          docker push "${APP_IMAGE}:${staging_tag}"
+
+  publish:
+    name: Publish master-fpm manifest
+    if: github.event_name != 'pull_request'
+    needs:
+      - validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish multi-platform master-fpm
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            --tag "${APP_IMAGE}:master-fpm" \
+            "${APP_IMAGE}:master-fpm-${GITHUB_SHA}-amd64" \
+            "${APP_IMAGE}:master-fpm-${GITHUB_SHA}-arm64"
+
+      - name: Inspect published manifest
+        shell: bash
+        run: docker buildx imagetools inspect "${APP_IMAGE}:master-fpm"

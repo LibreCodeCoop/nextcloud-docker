@@ -153,10 +153,10 @@ ghcr.io/librecodecoop/nextcloud-docker-web@sha256:<web-image-digest>
 
 The app image uses a single `.docker/app/Dockerfile` for both release and development builds.
 
-The Dockerfile has two explicit source modes:
+The Dockerfile models its two source modes as Docker build stages instead of runtime shell branching:
 
-- `NEXTCLOUD_SOURCE=release` keeps the Nextcloud payload provided by the selected official Nextcloud base image;
-- `NEXTCLOUD_SOURCE=daily` replaces that payload with a verified upstream daily archive.
+- `NEXTCLOUD_SOURCE=release` selects the stage that keeps the Nextcloud payload provided by the selected official Nextcloud base image;
+- `NEXTCLOUD_SOURCE=daily` selects the stage that replaces that payload with a verified upstream daily archive.
 
 The base runtime and the Nextcloud server payload are separate inputs. A development build can therefore follow Nextcloud Server `master` without introducing a Dockerfile or image identity tied to a future major.
 
@@ -164,7 +164,7 @@ For daily builds, `NEXTCLOUD_DAILY_URL` is required. The Dockerfile downloads th
 
 The repository Compose environment keeps `NEXTCLOUD_VERSION` as its user-facing version setting and maps it to the generic official base image. There is no second Compose stack for development images.
 
-The external PHP extension installer is pinned to an explicit release and SHA-256 instead of a mutable `latest` download.
+The PHP extension installer is consumed from its published Docker image instead of being downloaded by ad-hoc shell logic. Renovate tracks that Docker dependency and the explicit Trivy binary version used by CI, while GitHub Actions dependencies are also managed through Renovate.
 
 ## Runtime acceptance
 

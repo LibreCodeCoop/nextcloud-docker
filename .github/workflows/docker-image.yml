@@ -42,7 +42,7 @@ jobs:
           nextcloud_version: ${{ steps.nextcloud_version.outputs.value }}
 
       - name: Save SARIF reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: trivy-sarif-reports
           path: trivy-results/*.sarif
@@ -109,7 +109,7 @@ jobs:
           category: trivy-web-linux-arm64
 
       - name: Save SARIF reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: trivy-sarif-reports
           path: trivy-results/*.sarif

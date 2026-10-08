@@ -41,11 +41,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./volumes/nextcloud:/var/www/html
-      - ./backups:/backups
       - ./app-hooks/pre-installation:/docker-entrypoint-hooks.d/pre-installation
       - ./app-hooks/post-installation:/docker-entrypoint-hooks.d/post-installation
-      - ./app-hooks/pre-upgrade:/docker-entrypoint-hooks.d/pre-upgrade
-      - ./app-hooks/post-upgrade:/docker-entrypoint-hooks.d/post-upgrade
       - ./app-hooks/before-starting:/docker-entrypoint-hooks.d/before-starting
       - ./.docker/garages3.config.php:/var/www/html/config/garages3.config.php:ro
     environment:

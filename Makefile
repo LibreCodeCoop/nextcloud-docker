@@ -2,7 +2,7 @@ COMPOSE ?= docker compose
 GARAGES3_COMPOSE_FILE ?= docker-compose-garages3.yml
 APP_TEST_IMAGE ?= nextcloud-app:acceptance
 
-.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test-hooks test-scan-images test-ncdd test-app-image test-current-app-image scan-images
+.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test-scan-images test-ncdd test-app-image test-current-app-image scan-images
 
 up-garages3:
 	$(COMPOSE) -f $(GARAGES3_COMPOSE_FILE) up -d garage
@@ -26,9 +26,6 @@ setup-garages3:
 	$(MAKE) bootstrap-garages3
 	$(MAKE) start-garages3
 	$(MAKE) wait-nextcloud-garages3
-
-test-hooks:
-	bash tests/test-hooks.sh
 
 test-scan-images:
 	bash tests/test-scan-images.sh

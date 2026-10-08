@@ -6,7 +6,6 @@
   - [Após a configuração](#após-a-configuração)
   - [Configuração personalizada](#configuração-personalizada)
     - [Personalize o conteúdo do docker-compose](#personalize-o-conteúdo-do-docker-compose)
-    - [Hooks de upgrade do Nextcloud](#hooks-de-upgrade-do-nextcloud)
     - [PHP](#php)
   - [Execute o Nextcloud](#execute-o-nextcloud)
   - [Use uma versão específica do Nextcloud](#use-uma-versão-específica-do-nextcloud)
@@ -82,44 +81,6 @@ Você pode fazer isso usando variáveis de ambiente e criando um arquivo chamado
 ### Redis
 
 Os arquivos principais de compose agora incluem o serviço `redis` por padrão. Isso deixa o stack autocontido para instalações do Nextcloud que já usam Redis no `config.php` e evita depender de uma rede externa específica do host.
-
-### Hooks de upgrade do Nextcloud
-
-Este repositório monta os diretórios oficiais de hooks do Nextcloud Docker para permitir extensões do fluxo de instalação e upgrade sem alterar o entrypoint da imagem.
-
-O serviço `app` usa estes mounts:
-
-```yaml
-services:
-  app:
-    volumes:
-      - ./volumes/nextcloud:/var/www/html
-      - ./backups:/backups
-      - ./app-hooks/pre-installation:/docker-entrypoint-hooks.d/pre-installation
-      - ./app-hooks/post-installation:/docker-entrypoint-hooks.d/post-installation
-      - ./app-hooks/pre-upgrade:/docker-entrypoint-hooks.d/pre-upgrade
-      - ./app-hooks/post-upgrade:/docker-entrypoint-hooks.d/post-upgrade
-      - ./app-hooks/before-starting:/docker-entrypoint-hooks.d/before-starting
-```
-
-Os hooks de upgrade funcionam assim:
-
-- `pre-upgrade`: ativa o modo de manutenção
-- `pre-upgrade`: salva a lista de apps ativos em `/backups/app_list.old`
-- `pre-upgrade`: verifica o espaço livre no volume do Nextcloud e no volume de backup
-- `pre-upgrade`: cria um dump compactado do PostgreSQL em `/backups/nextcloud-db.sql.gz`, substituindo o dump anterior
-- `post-upgrade`: salva a nova lista de apps em `/backups/app_list.new` e mostra o diff quando possível
-- `post-upgrade`: executa os comandos `occ` extras necessários após um upgrade maior
-- `post-upgrade`: desativa o modo de manutenção ao final
-
-As variáveis abaixo controlam a checagem e o diretório de backup:
-
-- `NEXTCLOUD_BACKUP_DIR`, com padrão `/backups`
-- `NEXTCLOUD_UPGRADE_MIN_FREE_MB`, com padrão `2048`
-
-Os dois hooks de upgrade usam `NEXTCLOUD_BACKUP_DIR` para os arquivos da lista de apps e para o dump do banco.
-
-Este repositório já inclui o diretório `./backups`, então o Docker não cria um caminho root-owned em um checkout novo. Ele ainda precisa ser gravável pelo `www-data` dentro do container. O recomendado é usar `www-data:www-data` com permissão `0755`.
 
 ### Storage primário Garage S3
 

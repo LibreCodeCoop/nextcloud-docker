@@ -164,7 +164,7 @@ For daily builds, `NEXTCLOUD_DAILY_URL` is required. The Dockerfile downloads th
 
 The repository Compose environment keeps `NEXTCLOUD_VERSION` as its user-facing version setting and maps it to the generic official base image. There is no second Compose stack for development images.
 
-The generic app image avoids adding PHP extensions already absent from the official Nextcloud runtime unless a repository-level requirement justifies them. Dependabot owns Docker and GitHub Actions updates in this repository. Renovate is deliberately restricted to custom regex-managed values that Dependabot cannot see, currently the explicit Trivy binary version used by CI. The two bots must not manage the same dependency.
+The app image remains LibreSign-ready while being generic across Nextcloud versions. It keeps repository-level runtime requirements such as Poppler, UTF-8 locale support, and the PHP bz2 extension, but does not reinstall extensions already supplied by the official Nextcloud base image such as Imagick. Dependabot owns Docker and GitHub Actions updates in this repository. Renovate is deliberately restricted to custom regex-managed values that Dependabot cannot see, currently the explicit Trivy binary version used by CI. The two bots must not manage the same dependency.
 
 ## Runtime acceptance
 

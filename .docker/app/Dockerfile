@@ -1,6 +1,8 @@
 ARG NEXTCLOUD_BASE_IMAGE=nextcloud:stable-fpm
 ARG NEXTCLOUD_SOURCE=release
 
+FROM mlocati/php-extension-installer:2.12.0 AS php-extension-installer
+
 FROM ${NEXTCLOUD_BASE_IMAGE} AS release
 
 FROM ${NEXTCLOUD_BASE_IMAGE} AS daily
@@ -25,7 +27,19 @@ FROM ${NEXTCLOUD_SOURCE} AS runtime
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         gzip \
+        locales \
+        poppler-utils \
         postgresql-client \
+    && sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
+    && locale-gen \
     && rm -rf /var/lib/apt/lists/*
+
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
+
+COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
+RUN install-php-extensions bz2 \
+    && rm /usr/local/bin/install-php-extensions
 
 COPY config/php.ini /usr/local/etc/php/conf.d/

@@ -1,8 +1,6 @@
 ARG NEXTCLOUD_BASE_IMAGE=nextcloud:stable-fpm
 ARG NEXTCLOUD_SOURCE=release
 
-FROM mlocati/php-extension-installer:2.12.0 AS php-extension-installer
-
 FROM ${NEXTCLOUD_BASE_IMAGE} AS release
 
 FROM ${NEXTCLOUD_BASE_IMAGE} AS daily
@@ -29,9 +27,5 @@ RUN apt-get update \
         gzip \
         postgresql-client \
     && rm -rf /var/lib/apt/lists/*
-
-COPY --from=php-extension-installer /usr/bin/install-php-extensions /usr/local/bin/install-php-extensions
-RUN install-php-extensions bz2 \
-    && rm /usr/local/bin/install-php-extensions
 
 COPY config/php.ini /usr/local/etc/php/conf.d/

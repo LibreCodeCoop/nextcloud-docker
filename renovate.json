@@ -1,8 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "enabledManagers": [
-    "dockerfile",
-    "github-actions",
     "custom.regex"
   ],
   "dependencyDashboard": false,
@@ -17,23 +15,6 @@
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+version: (?<currentValue>v?\\d+\\.\\d+\\.\\d+)"
       ],
       "versioningTemplate": "semver-coerced"
-    }
-  ],
-  "packageRules": [
-    {
-      "matchManagers": [
-        "dockerfile"
-      ],
-      "matchDepNames": [
-        "mlocati/php-extension-installer"
-      ],
-      "pinDigests": true
-    },
-    {
-      "matchManagers": [
-        "github-actions"
-      ],
-      "pinDigests": true
     }
   ]
 }

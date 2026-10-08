@@ -164,7 +164,7 @@ For daily builds, `NEXTCLOUD_DAILY_URL` is required. The Dockerfile downloads th
 
 The repository Compose environment keeps `NEXTCLOUD_VERSION` as its user-facing version setting and maps it to the generic official base image. There is no second Compose stack for development images.
 
-The PHP extension installer is consumed from its published Docker image instead of being downloaded by ad-hoc shell logic. Renovate tracks that Docker dependency and the explicit Trivy binary version used by CI, while GitHub Actions dependencies are also managed through Renovate.
+The PHP extension installer is consumed from its published Docker image instead of being downloaded by ad-hoc shell logic. Dependabot owns Docker and GitHub Actions updates in this repository. Renovate is deliberately restricted to custom regex-managed values that Dependabot cannot see, currently the explicit Trivy binary version used by CI. The two bots must not manage the same dependency.
 
 ## Runtime acceptance
 

@@ -1,0 +1,97 @@
+name: Validate Nextcloud master image
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.docker/app/**'
+      - 'tests/app-image.bats'
+      - 'scripts/scan-images.sh'
+      - 'trivy.yaml'
+      - '.github/workflows/nextcloud-development.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - '.docker/app/**'
+      - 'tests/app-image.bats'
+      - 'scripts/scan-images.sh'
+      - 'trivy.yaml'
+      - '.github/workflows/nextcloud-development.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nextcloud-master-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: master-fpm / linux/${{ matrix.arch }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - arm64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Setup Bats
+        uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43 # 4.0.0
+        with:
+          support-install: false
+          assert-install: false
+          detik-install: false
+          file-install: false
+
+      - name: Build Nextcloud master app image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .docker/app
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          build-args: |
+            NEXTCLOUD_BASE_IMAGE=nextcloud:stable-fpm
+            NEXTCLOUD_SOURCE=daily
+            NEXTCLOUD_DAILY_URL=https://download.nextcloud.com/server/daily/latest-master.tar.bz2
+          tags: scan/master:${{ matrix.arch }}
+          cache-from: type=gha,scope=master-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=master-${{ matrix.arch }}
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          # renovate: datasource=github-releases depName=aquasecurity/trivy
+          version: v0.75.0
+          cache: true
+
+      - name: Scan Nextcloud master app image
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          bash scripts/scan-images.sh "app@linux/${ARCH}=scan/master:${ARCH}"
+
+      - name: Runtime acceptance
+        shell: bash
+        env:
+          APP_IMAGE: scan/master:${{ matrix.arch }}
+        run: bats tests/app-image.bats

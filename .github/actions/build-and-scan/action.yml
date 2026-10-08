@@ -30,7 +30,7 @@ runs:
         platforms: linux/amd64
         load: true
         build-args: |
-          NEXTCLOUD_VERSION=${{ inputs.nextcloud_version }}
+          NEXTCLOUD_BASE_IMAGE=nextcloud:${{ inputs.nextcloud_version }}
         tags: scan/app:amd64
         cache-from: type=gha
         cache-to: type=gha,mode=max
@@ -42,7 +42,7 @@ runs:
         platforms: linux/arm64
         load: true
         build-args: |
-          NEXTCLOUD_VERSION=${{ inputs.nextcloud_version }}
+          NEXTCLOUD_BASE_IMAGE=nextcloud:${{ inputs.nextcloud_version }}
         tags: scan/app:arm64
         cache-from: type=gha
         cache-to: type=gha,mode=max
@@ -70,7 +70,8 @@ runs:
     - name: Install Trivy
       uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
       with:
-        version: v0.74.0
+        # renovate: datasource=github-releases depName=aquasecurity/trivy
+        version: v0.75.0
         cache: true
 
     - name: Scan runtime images

@@ -37,6 +37,11 @@ discover_fixture() {
   [ "$(jq -r '[.versions[].major] | join(",")' "$inventory")" = 33,34,35 ]
   [ "$(jq -r '.versions[-1].release' "$inventory")" = 35.0.2 ]
 }
+@test "historical EOL formatting variations do not change the supported majors" {
+  run discover_fixture 2025-eol-structure 2025-10-27
+  [ "$status" -eq 0 ]
+  [ "$(jq -r '[.versions[].major] | join(",")' "$inventory")" = 31,32 ]
+}
 @test "malformed wiki preserves the last approved manifest" {
   echo '{"untouched":true}' > "$inventory"
   run discover_fixture 2024-malformed 2024-10-24

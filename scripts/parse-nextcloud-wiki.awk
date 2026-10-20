@@ -42,7 +42,12 @@ BEGIN { section = ""; state = 0; supported = 0; eol_rows = 0 }
     }
     next
   }
-  if (section == "" || $0 !~ /^[[:space:]]*\|/) next
+  if (section == "") next
+  if ($0 !~ /^[[:space:]]*\|/) {
+    if (state == 2) state = 3
+    next
+  }
+  if (state == 3) next
 
   count = columns($0, parts)
   if (state == 0) {
@@ -53,6 +58,8 @@ BEGIN { section = ""; state = 0; supported = 0; eol_rows = 0 }
           !("end of life" in field_index) || !("current version" in field_index)) {
         failure("supported table header changed")
       }
+    } else if (tolower(parts[1]) != "version code") {
+      failure("EOL table header changed")
     }
     header_columns = count
     state = 1
@@ -66,7 +73,9 @@ BEGIN { section = ""; state = 0; supported = 0; eol_rows = 0 }
     state = 2
     next
   }
-  if (count != header_columns) failure("table row column count changed")
+  if (section == "supported" && count != header_columns) {
+    failure("supported table row column count changed")
+  }
   if (section == "supported") {
     major = parts[field_index["version code"]]
     current = parts[field_index["current version"]]

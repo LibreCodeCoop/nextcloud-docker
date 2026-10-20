@@ -1,13 +1,18 @@
-name: Build, scan, and validate runtime images
-description: Build and scan both runtime images, then run app image acceptance tests
+name: Build, scan, and validate image
+description: Build either a Nextcloud FPM runtime or its independent web image
 inputs:
-  nextcloud_version:
-    description: Nextcloud version passed to the app image build
+  component:
+    description: Either app or web
     required: true
+  nextcloud_version:
+    description: Official Nextcloud release tag for app builds (e.g. 35.0.2-fpm)
+    required: false
+    default: ''
 runs:
   using: composite
   steps:
     - name: Setup Bats
+      if: inputs.component == 'app'
       uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43 # 4.0.0
       with:
         support-install: false
@@ -24,6 +29,7 @@ runs:
       uses: docker/setup-buildx-action@v3
 
     - name: Build app image (linux/amd64)
+      if: inputs.component == 'app'
       uses: docker/build-push-action@v6
       with:
         context: .docker/app
@@ -32,10 +38,11 @@ runs:
         build-args: |
           NEXTCLOUD_BASE_IMAGE=nextcloud:${{ inputs.nextcloud_version }}
         tags: scan/app:amd64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-amd64
+        cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-amd64
 
     - name: Build app image (linux/arm64)
+      if: inputs.component == 'app'
       uses: docker/build-push-action@v6
       with:
         context: .docker/app
@@ -44,28 +51,30 @@ runs:
         build-args: |
           NEXTCLOUD_BASE_IMAGE=nextcloud:${{ inputs.nextcloud_version }}
         tags: scan/app:arm64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-arm64
+        cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-arm64
 
     - name: Build web image (linux/amd64)
+      if: inputs.component == 'web'
       uses: docker/build-push-action@v6
       with:
         context: .docker/web
         platforms: linux/amd64
         load: true
         tags: scan/web:amd64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=web-amd64
+        cache-to: type=gha,mode=max,scope=web-amd64
 
     - name: Build web image (linux/arm64)
+      if: inputs.component == 'web'
       uses: docker/build-push-action@v6
       with:
         context: .docker/web
         platforms: linux/arm64
         load: true
         tags: scan/web:arm64
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: type=gha,scope=web-arm64
+        cache-to: type=gha,mode=max,scope=web-arm64
 
     - name: Install Trivy
       uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
@@ -74,22 +83,31 @@ runs:
         version: v0.75.0
         cache: true
 
-    - name: Scan runtime images
+    - name: Scan app image
+      if: inputs.component == 'app'
       shell: bash
       run: |
         bash scripts/scan-images.sh \
           'app@linux/amd64=scan/app:amd64' \
-          'app@linux/arm64=scan/app:arm64' \
+          'app@linux/arm64=scan/app:arm64'
+
+    - name: Scan web image
+      if: inputs.component == 'web'
+      shell: bash
+      run: |
+        bash scripts/scan-images.sh \
           'web@linux/amd64=scan/web:amd64' \
           'web@linux/arm64=scan/web:arm64'
 
     - name: Runtime acceptance app image (linux/amd64)
+      if: inputs.component == 'app'
       shell: bash
       env:
         APP_IMAGE: scan/app:amd64
       run: bats tests/app-image.bats
 
     - name: Runtime acceptance app image (linux/arm64)
+      if: inputs.component == 'app'
       shell: bash
       env:
         APP_IMAGE: scan/app:arm64

@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and publish maintained Nextcloud images
 
 on:
   push:
@@ -7,153 +7,198 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+  schedule:
+    - cron: '13 4 * * 2'
 
 permissions:
   contents: read
 
+concurrency:
+  group: nextcloud-stable-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
-  REGISTRY: ghcr.io
+  APP_IMAGE: ghcr.io/librecodecoop/nextcloud-docker-app
+  WEB_IMAGE: ghcr.io/librecodecoop/nextcloud-docker-web
 
 jobs:
-  verify:
-    if: github.event_name == 'pull_request'
+  script-tests:
+    name: Test version and publication scripts
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: Read Nextcloud version
-        id: nextcloud_version
+      - name: Setup Bats
+        uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43 # 4.0.0
+        with:
+          support-install: false
+          assert-install: false
+          detik-install: false
+          file-install: false
+
+      - name: Run offline regression tests
+        run: make test-ci-scripts
+
+      - name: Test Trivy wrapper
+        run: bash tests/test-scan-images.sh
+
+      - name: ShellCheck image publication scripts
         run: |
-          version=$(grep -m1 '^NEXTCLOUD_VERSION=' .env.example | cut -d= -f2-)
-          if [ -z "$version" ]; then
-            echo "NEXTCLOUD_VERSION is missing from .env.example" >&2
-            exit 1
-          fi
-          echo "value=$version" >> "$GITHUB_OUTPUT"
+          shellcheck scripts/nextcloud-versions.sh scripts/publish-images.sh \
+            scripts/publish-manifest.sh scripts/push-architecture.sh \
+            scripts/publish-master-manifest.sh scripts/push-master-architecture.sh
 
-      - name: Build and scan runtime images
-        uses: ./.github/actions/build-and-scan
-        with:
-          nextcloud_version: ${{ steps.nextcloud_version.outputs.value }}
-
-      - name: Save SARIF reports
-        uses: actions/upload-artifact@v6
-        with:
-          name: trivy-sarif-reports
-          path: trivy-results/*.sarif
-          if-no-files-found: warn
-
-  publish:
-    if: github.event_name == 'push'
+  versions:
+    needs: script-tests
+    name: Load approved Nextcloud releases
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.approved.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
+      - name: Validate reviewed manifest and emit matrix
+        id: approved
+        run: bash scripts/nextcloud-versions.sh matrix --github-output "$GITHUB_OUTPUT"
+
+  app:
+    name: app ${{ matrix.tag }}
+    needs: [script-tests, versions]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.versions.outputs.matrix) }}
     permissions:
       contents: read
       packages: write
       security-events: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: Read Nextcloud version
-        id: nextcloud_version
-        run: |
-          version=$(grep -m1 '^NEXTCLOUD_VERSION=' .env.example | cut -d= -f2-)
-          if [ -z "$version" ]; then
-            echo "NEXTCLOUD_VERSION is missing from .env.example" >&2
-            exit 1
-          fi
-          echo "value=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Normalize repository name
-        id: repo_name
-        run: echo "value=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and scan runtime images
+      - name: Build, scan, and test Nextcloud app
         uses: ./.github/actions/build-and-scan
         with:
-          nextcloud_version: ${{ steps.nextcloud_version.outputs.value }}
+          component: app
+          nextcloud_version: ${{ matrix.release }}-fpm
 
-      - name: Upload app amd64 SARIF to GitHub code scanning
-        if: hashFiles('trivy-results/app-linux-amd64.sarif') != ''
+      - name: Upload amd64 security findings
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results/app-linux-amd64.sarif
-          category: trivy-app-linux-amd64
+          category: trivy-app-linux-amd64-${{ matrix.tag }}
 
-      - name: Upload app arm64 SARIF to GitHub code scanning
-        if: hashFiles('trivy-results/app-linux-arm64.sarif') != ''
+      - name: Upload arm64 security findings
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results/app-linux-arm64.sarif
-          category: trivy-app-linux-arm64
+          category: trivy-app-linux-arm64-${{ matrix.tag }}
 
-      - name: Upload web amd64 SARIF to GitHub code scanning
-        if: hashFiles('trivy-results/web-linux-amd64.sarif') != ''
+      - name: Save vulnerability reports
+        uses: actions/upload-artifact@v6
+        with:
+          name: trivy-app-${{ matrix.tag }}
+          path: trivy-results/*.sarif
+          if-no-files-found: error
+
+      - name: Log in to GHCR
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Stage validated architectures
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: bash scripts/publish-images.sh stage-app "$APP_IMAGE" "$GITHUB_SHA" "${{ matrix.tag }}"
+
+  web:
+    name: web runtime
+    needs: script-tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Build and scan web image once
+        uses: ./.github/actions/build-and-scan
+        with:
+          component: web
+
+      - name: Upload amd64 security findings
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results/web-linux-amd64.sarif
           category: trivy-web-linux-amd64
 
-      - name: Upload web arm64 SARIF to GitHub code scanning
-        if: hashFiles('trivy-results/web-linux-arm64.sarif') != ''
+      - name: Upload arm64 security findings
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results/web-linux-arm64.sarif
           category: trivy-web-linux-arm64
 
-      - name: Save SARIF reports
+      - name: Save vulnerability reports
         uses: actions/upload-artifact@v6
         with:
-          name: trivy-sarif-reports
+          name: trivy-web
           path: trivy-results/*.sarif
-          if-no-files-found: warn
+          if-no-files-found: error
 
-      - name: Log in to Container Registry
+      - name: Log in to GHCR
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: docker/login-action@v4.6.0
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push scanned architecture images
-        env:
-          APP_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app
-          WEB_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-web
-          IMAGE_VERSION: sha-${{ github.sha }}
-        run: |
-          set -euo pipefail
+      - name: Stage validated web architectures
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: bash scripts/publish-images.sh stage-web "$WEB_IMAGE" "$GITHUB_SHA"
 
-          docker tag scan/app:amd64 "${APP_IMAGE}:${IMAGE_VERSION}-amd64"
-          docker tag scan/app:arm64 "${APP_IMAGE}:${IMAGE_VERSION}-arm64"
-          docker tag scan/web:amd64 "${WEB_IMAGE}:${IMAGE_VERSION}-amd64"
-          docker tag scan/web:arm64 "${WEB_IMAGE}:${IMAGE_VERSION}-arm64"
+  promote:
+    name: Publish versioned manifests and moving aliases
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [script-tests, versions, app, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-          docker push "${APP_IMAGE}:${IMAGE_VERSION}-amd64"
-          docker push "${APP_IMAGE}:${IMAGE_VERSION}-arm64"
-          docker push "${WEB_IMAGE}:${IMAGE_VERSION}-amd64"
-          docker push "${WEB_IMAGE}:${IMAGE_VERSION}-arm64"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Publish multi-platform image tags
-        env:
-          APP_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app
-          WEB_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-web
-          IMAGE_VERSION: sha-${{ github.sha }}
-        run: |
-          set -euo pipefail
+      - name: Log in to GHCR
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-          docker buildx imagetools create \
-            --tag "${APP_IMAGE}:latest" \
-            "${APP_IMAGE}:${IMAGE_VERSION}-amd64" \
-            "${APP_IMAGE}:${IMAGE_VERSION}-arm64"
-
-          docker buildx imagetools create \
-            --tag "${WEB_IMAGE}:latest" \
-            "${WEB_IMAGE}:${IMAGE_VERSION}-amd64" \
-            "${WEB_IMAGE}:${IMAGE_VERSION}-arm64"
+      - name: Publish approved images and aliases
+        run: bash scripts/publish-images.sh promote "$APP_IMAGE" "$WEB_IMAGE" "$GITHUB_SHA" .github/nextcloud-supported.json

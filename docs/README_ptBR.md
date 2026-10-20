@@ -1,166 +1,54 @@
-# Nextcloud com SSL e Docker
-- [Nextcloud com SSL e Docker](#nextcloud-com-ssl-e-docker)
-  - [Configuração do Docker](#configuração-do-docker)
-  - [Configuração de proxy](#configuração-de-proxy)
-  - [Antes da primeira execução](#antes-da-primeira-execução)
-  - [Após a configuração](#após-a-configuração)
-  - [Configuração personalizada](#configuração-personalizada)
-    - [Personalize o conteúdo do docker-compose](#personalize-o-conteúdo-do-docker-compose)
-    - [PHP](#php)
-  - [Execute o Nextcloud](#execute-o-nextcloud)
-  - [Use uma versão específica do Nextcloud](#use-uma-versão-específica-do-nextcloud)
-  - [Logs](#logs)
-  - [Nextcloud Talk](#talk)
- 
-## Configuração do Docker
+# Nextcloud com Docker
 
-Você precisa ter, em seu servidor, o Docker instalado. A instalação pode ser feita com um script oficial, seguindo os seguintes passos:
-- Baixe o Docker
-```bash
-curl -fsSL https://get.docker.com -o get-docker.sh
-```
-- Execute o script
-```bash
-sh get-docker.sh
-```
-- Conceda permissões para executar o comando Docker para seu usuário
-```bash
-sudo usermod -aG docker $USER
-```
-- Remova o script de instalação
-```bash
-rm get-docker.sh
-```
+[English](../README.md)
 
-## Configuração de proxy
+Um ambiente Docker configurável para organizações e equipes que hospedam seu próprio Nextcloud. Mantido pela [LibreCode](https://librecode.coop/), este repositório reúne a aplicação, o servidor web, o cache e a integração com banco de dados em uma implantação que pode ser adaptada à sua infraestrutura.
 
-Siga as instruções deste repositório:
+## Por que utilizar este projeto?
 
-https://github.com/LibreCodeCoop/nginx-proxy
+- **Controle das atualizações.** Escolha uma versão principal do Nextcloud e planeje as migrações sem mudanças inesperadas de versão.
+- **Flexibilidade na infraestrutura.** Utilize Docker Compose com Nginx, Redis, PostgreSQL e armazenamento opcional no Garage S3.
+- **Imagens com verificações automatizadas.** As imagens publicadas acompanham versões mantidas do Nextcloud e passam por varredura de vulnerabilidades e testes de execução antes da publicação.
+- **Separação entre produção e desenvolvimento.** Imagens estáveis versionadas e o canal `master-fpm` atendem a necessidades diferentes.
 
-## Antes da primeira execução
+O projeto é voltado a equipes que administram sua própria infraestrutura ou oferecem Nextcloud como serviço. Ele fornece ferramentas de implantação, não uma assinatura de hospedagem.
 
-Copie o `.env.example` para `.env` e defina os valores.
+## Comece a utilizar
+
+Você precisa do Docker Engine com Docker Compose, de um domínio para acesso público e de um proxy reverso. O exemplo utiliza o [proxy Nginx da LibreCode](https://github.com/LibreCodeCoop/nginx-proxy); a extensão Compose do PostgreSQL está incluída neste repositório.
 
 ```bash
 cp .env.example .env
-```
-
-| Ambiente | serviço | Descrição |
-|-------------|---------|-------|
-| [`VIRTUAL_HOST`](https://github.com/nginx-proxy/nginx-proxy#usage) | `web` | Seu domínio |
-| [`LETSENCRYPT_HOST`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Basic-usage.md#step-3---proxyed-containers) | `web` | Seu domínio |
-| [`LETSENCRYPT_EMAIL`](https://github.com/nginx-proxy/docker-letsencrypt-nginx-proxy-companion/blob/master/docs/Let's-Encrypt-and-ACME.md#contact-address) | `web` | Seu email de administrador de sistema |
-| `NEXTCLOUD_TRUSTED_DOMAINS` | `app` | domínios separados por vírgula. O domínio `web` é obrigatório, adicione seu domínio junto com o domínio `web`. O domínio `web` é o domínio do serviço Nginx. |
-
-> **PS**: A Let's Encrypt só funciona em servidores quando os `VIRTUAL_HOST` e `LETSENCRYPT_HOST` têm um domínio público válido registrado em um servidor DNS. Não tente usá-lo em localhost, não funciona!
-
-Crie uma rede
-
-```bash
+# Edite .env: domínio, credenciais, administrador e versão do Nextcloud.
 docker network create reverse-proxy
+docker network create postgres
+docker compose -f docker-compose.yml -f docker-compose-postgres.yml up -d --build
 ```
 
-## Após a configuração
+O proxy reverso deve estar configurado e conectado à rede externa `reverse-proxy`. Configure também o DNS antes de esperar que o HTTPS funcione. Em produção, revise a versão do PostgreSQL usada no exemplo, os backups e as migrações dos volumes.
 
-Após concluir a configuração, acesse esta URL: https://seudomínio.tld/settings/admin/overview.
+Para variáveis de ambiente, instalações existentes, armazenamento e solução de problemas, consulte o [guia de implantação](deployment_ptBR.md).
 
-Se for necessário executar algum comando occ, execute da seguinte forma:
+## Versões e atualizações do Nextcloud
 
-```bash
-docker compose exec -u www-data app ./occ db:add-missing-indices
-docker compose exec -u www-data app ./occ db:convert-filecache-bigint
+Defina `NEXTCLOUD_VERSION` no arquivo `.env` para selecionar a **imagem-base oficial do Nextcloud** utilizada no build local do Docker Compose. Isso é diferente da publicação das imagens da LibreCode no GHCR.
+
+As imagens de aplicação da LibreCode disponibilizam tags por versão, por exemplo:
+
+```text
+ghcr.io/librecodecoop/nextcloud-docker-app:35-fpm
 ```
 
- ## Configuração personalizada
+Em produção, **fixe uma versão principal ou o digest OCI** e planeje cada atualização de versão principal. As tags móveis `:latest` e `:stable-fpm` podem passar para uma versão principal mais recente; não são uma boa escolha para atualizações automáticas em produção.
 
-### Personalize o conteúdo do docker-compose
+Consulte [imagens, tags e política de atualização](images.md) para conhecer as opções.
 
-Você pode fazer isso usando variáveis de ambiente e criando um arquivo chamado `docker-compose.override.yml` para adicionar novos serviços.
+## Documentação
 
-### Redis
-
-Os arquivos principais de compose agora incluem o serviço `redis` por padrão. Isso deixa o stack autocontido para instalações do Nextcloud que já usam Redis no `config.php` e evita depender de uma rede externa específica do host.
-
-### Storage primário Garage S3
-
-Use `docker-compose-garages3.yml` quando quiser que o Nextcloud grave os arquivos em um bucket Garage S3 em vez do diretório local `data/`.
-
-O stack espera estes valores em `.env`:
-
-- `GARAGES3_BUCKET`
-- `GARAGES3_KEY`
-- `GARAGES3_KEY_ID`
-- `GARAGES3_SECRET`
-- `GARAGES3_HOSTNAME`, com padrão `host.docker.internal`
-- `GARAGES3_PORT`, com padrão `3900`
-- `GARAGES3_REGION`, com padrão `garage`
-
-Crie o bucket e a chave de acesso no Garage antes de iniciar o Nextcloud com este compose. `GARAGES3_KEY_ID` deve conter o access key ID do Garage usado pelo Nextcloud.
-
-O serviço Garage usa `garage/garage.toml`. Atualize `rpc_secret` antes de usar em ambiente real.
-
-Use `make up-garages3` para subir o Garage e `make bootstrap-garages3` para criar o bucket e a chave de acesso no Garage.
-O bootstrap atualiza `.env` com as credenciais geradas do Garage.
-Use `make setup-garages3` para executar a configuração completa e aguardar o Nextcloud reportar como instalado.
-O stack agora usa PostgreSQL 16. Se você já criou o volume do banco com uma versão major mais antiga, recrie ou migre esse volume uma vez antes de subir o compose atualizado.
-
-Para uma instalação local limpa, use `make reset-garages3`.
-Use `make setup-garages3` se quiser manter o estado local existente e apenas repetir as etapas de setup.
-
-Fluxo básico:
-
-1. Copie `.env.example` para `.env`, se necessário.
-2. Atualize `garage/garage.toml` e substitua o `rpc_secret` placeholder.
-3. Execute `make setup-garages3`.
-4. Abra a URL do Nextcloud e finalize a configuração inicial do admin, se ainda estiver pendente.
-
-### PHP
-
-- Crie seu arquivo `.ini` na pasta `volumes/php/`. Exemplo: `volumes/php/xdebug.ini`
-- Altere o arquivo `docker-compose.override.yml` adicionando seu volume
-```yaml
-services:
-  app:
-    volumes:
-      - ./volumes/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
-```
-
-## Execute o Nextcloud
-
-```bash
-# O serviço postgres é executado separadamente para que seja possível reutilizar este serviço para outras aplicações que usam PostgreSQL
-docker compose up -f docker-compose-postgres.yml -d
-docker compose up -d
-docker compose -d
-```
-## Use uma versão específica do Nextcloud
-
-Altere o valor de `NEXTCLOUD_VERSION` no arquivo `.env` e coloque o nome do rótulo que deseja usar. Verifique as tags disponíveis aqui: https://hub.docker.com/_/nextcloud/tags
-
-O workflow de build no GHCR lê `NEXTCLOUD_VERSION` de `.env.example` e publica as imagens de app e web com tag fixa `:latest`, para que ferramentas como o Watchtower acompanhem atualizações sem trocar o nome da imagem.
-
-Construa as imagens, derrube os contêineres e inicie-os novamente:
-
-```bash
-docker compose build --pull
-docker compose up -d
-```
-
-## Logs
-
-Se você quiser ver os logs, execute:
-
-```bash
-docker compose logs -f --tail=100
-```
-Você verá esta mensagem nos logs e muitas outras mensagens de atualização:
-
-```log
-app_1      | 2020-04-28T19:49:38.568623133Z Inicializando o Nextcloud 18.0.4.2 ...
-app_1      | 2020-04-28T19:49:38.577733913Z Atualizando o Nextcloud a partir da versão 18.0.3.0 ...
-```
-
-## Talk
-
-Para configurar o Nextcloud Talk e demais serviços necessários, veja [aqui](https://github.com/LibreCodeCoop/nextcloud-docker-talk).
+| Guia | Conteúdo |
+| --- | --- |
+| [Implantação e personalização](deployment_ptBR.md) | Instalação, configuração, armazenamento, PHP e logs |
+| [Imagens de contêiner](images.md) | Tags, compatibilidade e atualizações seguras |
+| [Nextcloud Talk](https://github.com/LibreCodeCoop/nextcloud-docker-talk) | Serviços adicionais para o Talk |
+| [Comandos de desenvolvimento](ncdd.md) | Interface `bin/ncdd` para desenvolvimento local |
+| [Manutenção das imagens](maintenance.md) | Descoberta de versões, workflows, CI e publicação |

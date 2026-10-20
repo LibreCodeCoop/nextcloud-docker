@@ -25,6 +25,7 @@ RUN set -eux; \
 FROM ${NEXTCLOUD_SOURCE} AS runtime
 
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
         locales \
         poppler-utils \

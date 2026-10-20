@@ -1,213 +1,63 @@
-# Container image naming and tagging
+# Container images and upgrade policy
 
-This document is the source of truth for image names, tags, runtime variants, and traceability for images published by this repository.
+The LibreCode Nextcloud images let you choose a maintained Nextcloud release for your environment. This guide describes the **public image names, tags, and update behavior**. For details of how these images are built, tested, and published, see the [maintainer guide](maintenance.md).
 
-The convention intentionally stays close to the official Nextcloud image model. Channel or server version, runtime variant, and immutable image identity are separate concerns.
+## Images
 
-## Image names
+| Image | Purpose |
+| --- | --- |
+| `ghcr.io/librecodecoop/nextcloud-docker-app` | Nextcloud application runtime with PHP-FPM |
+| `ghcr.io/librecodecoop/nextcloud-docker-web` | Nginx web runtime; independent of the Nextcloud major |
 
-Published image names describe the component contained in the image:
+The [repository's Docker Compose example](deployment.md) builds its images locally from the official `nextcloud:${NEXTCLOUD_VERSION}` base. It does not automatically pull these GHCR images.
 
-- `ghcr.io/librecodecoop/nextcloud-docker-app` — Nextcloud application runtime.
-- `ghcr.io/librecodecoop/nextcloud-docker-web` — web/proxy runtime published by this repository.
+## Application tags
 
-Version, development channel, and runtime variant belong in tags, not in the image name.
-
-Do not create a new image name merely to represent a Nextcloud major or development channel.
-
-## App image tags
-
-The app image follows the tag structure used by the official Nextcloud images.
-
-| Reference | Meaning | Behavior |
+| Tag | Meaning | Update behavior |
 | --- | --- | --- |
-| `:<major>-fpm` | Stable release channel within one Nextcloud major, for example `35-fpm` | Moving |
-| `:<full-version>-fpm` | A specific Nextcloud server release, for example `35.0.1-fpm` | Release-specific tag; may be rebuilt |
-| `:stable-fpm` | Current stable Nextcloud channel, when this alias is intentionally published | Moving |
-| `:master-fpm` | Development channel following Nextcloud Server `master` | Moving |
-| `@sha256:<digest>` | Exact OCI image content | Immutable |
+| `:<major>-fpm`, e.g. `:35-fpm` | One maintained Nextcloud major | Receives updates within that major |
+| `:<full-version>-fpm`, e.g. `:35.0.2-fpm` | A particular Nextcloud server release | May be rebuilt with updated base packages |
+| `:stable-fpm` | The newest approved, supported major | Can advance to a different major |
+| `:latest` | Compatibility alias of `:stable-fpm` | Can advance to a different major |
+| `:master-fpm` | Development builds following upstream Nextcloud Server `master` | Changes independently of stable releases |
+| `@sha256:<digest>` | Exact OCI image content | Immutable reference |
 
-The runtime variant is the suffix after the channel or version. The currently defined app runtime variant is `fpm`.
+All currently defined application tags use the `fpm` runtime variant. The `master-fpm` channel is intended for testing and development, not production data.
 
-A future runtime variant, such as `apache`, must preserve the same channel/version semantics instead of introducing a different naming system.
+## Web tags
 
-The development channel must follow upstream `master`; it must not be identified by a future Nextcloud major.
+The web image is not coupled to a Nextcloud release:
 
-## Web image tags
+| Tag | Meaning |
+| --- | --- |
+| `:main` | Moving web image from the main development line |
+| `:latest` | Compatibility alias of `:main` |
+| `@sha256:<digest>` | Exact web image content |
 
-The web image is not tied to a Nextcloud server version.
+## Production upgrade guidance
 
-Use:
+**Prefer a major-specific tag** such as `:35-fpm` when you want security and patch updates within the same Nextcloud major. For fully reproducible rollouts, resolve and pin an OCI digest.
 
-- `:main` for the moving image built from this repository's main development line;
-- `@sha256:<digest>` when an exact immutable image is required.
+Do **not** use the moving `:latest` or `:stable-fpm` application aliases with unattended production upgrades: a new Nextcloud major can require application, database, and data migrations. Back up your installation, confirm compatibility, and follow Nextcloud's supported upgrade path before changing majors.
 
-Do not add a Nextcloud major to the web image tag unless the web image itself gains a real version-dependent contract.
+When a major reaches end of life, it stops receiving rebuilt, maintained images after its removal is approved. Previously published GHCR tags are not automatically deleted, but an existing tag does **not** mean its Nextcloud major is still supported.
 
-## Moving tags and immutable references
+See the [official Nextcloud Server maintenance schedule](https://github.com/nextcloud/server/wiki/Maintenance-and-Release-Schedule) for current support dates.
 
-Moving tags are convenient channel selectors. Their target can change when a new image is published.
+## Image references
 
-Examples:
+Examples of image identifiers:
 
-- `35-fpm`;
-- `stable-fpm`;
-- `master-fpm`;
-- `main` for the web image.
-
-Use a moving tag when following a maintained channel is intentional.
-
-The canonical immutable identity of a published image is its OCI digest:
-
-```
+```text
+ghcr.io/librecodecoop/nextcloud-docker-app:35-fpm
+ghcr.io/librecodecoop/nextcloud-docker-app:35.0.2-fpm
+ghcr.io/librecodecoop/nextcloud-docker-app:master-fpm
+ghcr.io/librecodecoop/nextcloud-docker-web:main
 ghcr.io/librecodecoop/nextcloud-docker-app@sha256:<digest>
 ```
 
-A tag containing a repository commit, such as `sha-<commit>`, may be useful for traceability but is not inherently immutable if a rebuild can resolve different upstream packages or base-image content.
+A release tag identifies the upstream Nextcloud version, but only an OCI digest identifies exact image content. Repository revision tags used during publishing are not necessarily immutable.
 
-A full Nextcloud release tag such as `35.0.1-fpm` identifies the server release clearly, but the OCI digest is still the exact image identity.
+Published OCI metadata identifies the source, revision, build time, version or channel, and relevant runtime information where available. This helps with traceability but does not replace digest pinning.
 
-## Tags that are not part of the new contract
-
-Do not introduce these as the repository convention:
-
-- bare `:latest`;
-- `:dev`;
-- `:dev-<major>`;
-- `:stable-<major>-fpm`;
-- `:nc-<major>`;
-- bare `:<major>`;
-- a development tag tied only to the next Nextcloud major.
-
-Historical tags may continue to exist temporarily while old implementations are replaced, but their existence does not make them part of this contract.
-
-The historical development tag `:35` does not require a compatibility alias: the consumer inventory in #52 found no active consumer that depends on it.
-
-## Traceability metadata
-
-Every image published under this convention must expose enough metadata to identify both this repository build and the relevant upstream runtime.
-
-Use standard OCI labels where the standard already defines the meaning:
-
-- `org.opencontainers.image.source` — source repository URL;
-- `org.opencontainers.image.revision` — source repository revision used for the build;
-- `org.opencontainers.image.created` — build timestamp;
-- `org.opencontainers.image.version` — human-readable image/server version or channel where applicable.
-
-The published metadata must also identify:
-
-- Nextcloud version or upstream revision;
-- PHP version for the app runtime;
-- runtime variant, such as `fpm`;
-- resolved upstream/base image when applicable.
-
-Project-specific labels may be used for metadata that has no suitable OCI standard label, but they must not replace an existing OCI label.
-
-Traceability metadata does not replace an OCI digest when an immutable reference is required.
-
-## Examples
-
-Stable moving app channel:
-
-```
-ghcr.io/librecodecoop/nextcloud-docker-app:35-fpm
-```
-
-Specific stable Nextcloud release:
-
-```
-ghcr.io/librecodecoop/nextcloud-docker-app:35.0.1-fpm
-```
-
-Development channel following Nextcloud Server `master`:
-
-```
-ghcr.io/librecodecoop/nextcloud-docker-app:master-fpm
-```
-
-Moving web image:
-
-```
-ghcr.io/librecodecoop/nextcloud-docker-web:main
-```
-
-Immutable stable app image after resolving the digest of the selected stable build:
-
-```
-ghcr.io/librecodecoop/nextcloud-docker-app@sha256:<stable-image-digest>
-```
-
-Immutable development app image after resolving the digest published for the `master-fpm` build:
-
-```
-ghcr.io/librecodecoop/nextcloud-docker-app@sha256:<master-image-digest>
-```
-
-Immutable web image:
-
-```
-ghcr.io/librecodecoop/nextcloud-docker-web@sha256:<web-image-digest>
-```
-
-## App image build sources
-
-The app image uses a single `.docker/app/Dockerfile` for both release and development builds.
-
-The Dockerfile models its two source modes as Docker build stages instead of runtime shell branching:
-
-- `NEXTCLOUD_SOURCE=release` selects the stage that keeps the Nextcloud payload provided by the selected official Nextcloud base image;
-- `NEXTCLOUD_SOURCE=daily` selects the stage that replaces that payload with a verified upstream daily archive.
-
-The base runtime and the Nextcloud server payload are separate inputs. A development build can therefore follow Nextcloud Server `master` without introducing a Dockerfile or image identity tied to a future major.
-
-For daily builds, `NEXTCLOUD_DAILY_URL` is required. The Dockerfile downloads the matching `.sha512` file, verifies the archive, and prepares `/usr/src/nextcloud` in the layout expected by the official Nextcloud entrypoint.
-
-The repository Compose environment keeps `NEXTCLOUD_VERSION` as its user-facing version setting and maps it to the generic official base image. There is no second Compose stack for development images.
-
-The app image remains LibreSign-ready while being generic across Nextcloud versions. It keeps repository-level runtime requirements such as Poppler, UTF-8 locale support, and the PHP bz2 extension, but does not reinstall extensions already supplied by the official Nextcloud base image such as Imagick. Dependabot owns Docker and GitHub Actions updates in this repository. Renovate is deliberately restricted to custom regex-managed values that Dependabot cannot see, currently the explicit Trivy binary version used by CI. The two bots must not manage the same dependency.
-
-## Development publication
-
-The rolling Nextcloud Server `master` image is published as:
-
-```
-ghcr.io/librecodecoop/nextcloud-docker-app:master-fpm
-```
-
-Pull requests build, scan, and run runtime acceptance for both amd64 and arm64 without publishing. Pushes to `main`, the daily scheduled run, and manual workflow dispatches may publish only after both architectures pass those gates.
-
-The workflow resolves the official `nextcloud:stable-fpm` base to an OCI digest and records that digest in image metadata. It also records the SHA-512 of the exact upstream `latest-master.tar.bz2` artifact used for the build. This provides exact upstream artifact traceability without inventing a Nextcloud Git commit that the daily archive does not expose.
-
-Architecture-specific staging tags are implementation details used to assemble the multi-platform manifest. The public development-channel contract is `:master-fpm`.
-
-## Runtime acceptance
-
-The app image has a runtime acceptance test based on the same behavioral checks used by the official Nextcloud container projects.
-
-The test operates on an already-built local image. It does not rebuild the image and does not use the repository deployment Compose files:
-
-```bash
-make test-app-image APP_IMAGE=scan/app:amd64
-```
-
-For a local build of the current app image followed by the same acceptance test:
-
-```bash
-make test-current-app-image
-```
-
-The Bats acceptance test creates an isolated Docker network and PostgreSQL container, starts the image with Nextcloud autoinstall variables, waits for the installation, runs `occ status` and `occ check`, and sends a FastCGI request through the FPM runtime. Test-created resources are removed on success and failure.
-
-CI must run this test against the exact locally loaded app images produced by the build step. Runtime acceptance is a publication gate alongside vulnerability scanning; a separate deployment-stack test is not required for this contract.
-
-## Implementation boundary
-
-This document defines the target contract and the generic app-image foundation now implements the release/daily source split.
-
-Remaining work in #47 must continue incrementally. In particular:
-
-- keep the `:master-fpm` publication workflow aligned with the generic app-image foundation;
-- extend traceability metadata when upstream exposes stronger revision identifiers;
-- keep LibreSign-specific behavior out of the generic runtime;
-- preserve scan and runtime-acceptance gates before publication;
-- preserve the existing Compose environment until a replacement is explicitly validated.
+For maintainers: [version discovery, security gates, and publication workflows](maintenance.md).

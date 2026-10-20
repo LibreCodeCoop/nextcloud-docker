@@ -34,6 +34,9 @@ jobs:
       - name: Test wiki parser and publication policy
         run: make test-ci-scripts
 
+      - name: ShellCheck version discovery
+        run: shellcheck scripts/nextcloud-versions.sh
+
       - name: Discover and verify maintained versions
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

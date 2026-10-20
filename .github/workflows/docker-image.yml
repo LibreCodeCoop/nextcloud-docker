@@ -46,6 +46,12 @@ jobs:
       - name: Test Trivy wrapper
         run: bash tests/test-scan-images.sh
 
+      - name: ShellCheck image publication scripts
+        run: |
+          shellcheck scripts/nextcloud-versions.sh scripts/publish-images.sh \
+            scripts/publish-manifest.sh scripts/push-architecture.sh \
+            scripts/publish-master-manifest.sh scripts/push-master-architecture.sh
+
   versions:
     needs: script-tests
     name: Load approved Nextcloud releases
@@ -116,7 +122,7 @@ jobs:
 
       - name: Stage validated architectures
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        run: python3 scripts/publish_images.py stage-app --image "$APP_IMAGE" --revision "$GITHUB_SHA" --tag "${{ matrix.tag }}"
+        run: bash scripts/publish-images.sh stage-app "$APP_IMAGE" "$GITHUB_SHA" "${{ matrix.tag }}"
 
   web:
     name: web runtime
@@ -168,7 +174,7 @@ jobs:
 
       - name: Stage validated web architectures
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        run: python3 scripts/publish_images.py stage-web --image "$WEB_IMAGE" --revision "$GITHUB_SHA"
+        run: bash scripts/publish-images.sh stage-web "$WEB_IMAGE" "$GITHUB_SHA"
 
   promote:
     name: Publish versioned manifests and moving aliases
@@ -195,4 +201,4 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish approved images and aliases
-        run: python3 scripts/publish_images.py promote --app-image "$APP_IMAGE" --web-image "$WEB_IMAGE" --revision "$GITHUB_SHA"
+        run: bash scripts/publish-images.sh promote "$APP_IMAGE" "$WEB_IMAGE" "$GITHUB_SHA" .github/nextcloud-supported.json

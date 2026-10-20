@@ -31,7 +31,7 @@ test-scan-images:
 	bash tests/test-scan-images.sh
 
 test-ci-scripts:
-	bats tests/nextcloud-versions.bats
+	bats tests/nextcloud-versions.bats tests/publish-images.bats
 
 test-development-image-scripts:
 	bats tests/nextcloud-development-image.bats

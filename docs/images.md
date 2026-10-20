@@ -222,7 +222,7 @@ The latest supported major is the highest major in this reviewed list; no major 
 The `Discover maintained Nextcloud versions` workflow checks the upstream
 [Server maintenance wiki](https://github.com/nextcloud/server/wiki/Maintenance-and-Release-Schedule)
 twice each day and on manual dispatch. Discovery uses
-`scripts/nextcloud_versions.py` to extract the **Currently supported/maintained versions** table
+`scripts/nextcloud-versions.sh` and the small `scripts/parse-nextcloud-wiki.awk` parser to extract the **Currently supported/maintained versions** table
 and verifies the independent **EOL Versions** table. It rejects changed table structures,
 duplicate majors, expired EOL months, future release dates and invalid version formats.
 It then checks the official `nextcloud-releases/server` release and the
@@ -245,7 +245,7 @@ After a human reviews and merges the manifest PR, the stable workflow uses the c
 to build and scan each `nextcloud:<full-version>-fpm` with Bats runtime acceptance.
 The independent web image is built and scanned **once**, without tying it to a Nextcloud major.
 Only successful jobs push architecture-specific staging tags. After all jobs pass,
-`scripts/publish_images.py` publishes the versioned multi-platform manifests, followed by:
+`scripts/publish-images.sh`, using the same Bash manifest helper as the master channel, publishes the versioned multi-platform manifests, followed by:
 
 - The `:<major>-fpm` channels for every approved, supported major.
 - The `:<full-version>-fpm` patch tags for the verified upstream releases.

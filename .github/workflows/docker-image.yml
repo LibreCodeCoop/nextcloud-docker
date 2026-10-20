@@ -74,28 +74,28 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results/app-linux-amd64.sarif
-          category: trivy-app-linux-amd64
+          category: trivy-app-linux-amd64-${{ matrix.nextcloud_version }}
 
       - name: Upload app arm64 SARIF to GitHub code scanning
         if: hashFiles('trivy-results/app-linux-arm64.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results/app-linux-arm64.sarif
-          category: trivy-app-linux-arm64
+          category: trivy-app-linux-arm64-${{ matrix.nextcloud_version }}
 
       - name: Upload web amd64 SARIF to GitHub code scanning
         if: hashFiles('trivy-results/web-linux-amd64.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results/web-linux-amd64.sarif
-          category: trivy-web-linux-amd64
+          category: trivy-web-linux-amd64-${{ matrix.nextcloud_version }}
 
       - name: Upload web arm64 SARIF to GitHub code scanning
         if: hashFiles('trivy-results/web-linux-arm64.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results/web-linux-arm64.sarif
-          category: trivy-web-linux-arm64
+          category: trivy-web-linux-arm64-${{ matrix.nextcloud_version }}
 
       - name: Save SARIF reports
         uses: actions/upload-artifact@v6

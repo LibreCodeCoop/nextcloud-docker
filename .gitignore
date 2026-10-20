@@ -6,3 +6,5 @@
 docker-compose.override.yml
 .trivy-cache/
 trivy-results/
+__pycache__/
+*.pyc

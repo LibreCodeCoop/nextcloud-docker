@@ -1,0 +1,63 @@
+name: Discover maintained Nextcloud versions
+
+on:
+  schedule:
+    - cron: '21 5,17 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: nextcloud-wiki-discovery
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout reviewed branch
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Test wiki parser and publication policy
+        run: make test-ci-scripts
+
+      - name: Discover and verify maintained versions
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/nextcloud_versions.py discover
+
+      - name: Propose reviewed manifest update
+        id: pull_request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          add-paths: .github/nextcloud-supported.json
+          branch: automation/nextcloud-supported-versions
+          delete-branch: true
+          signoff: true
+          sign-commits: true
+          commit-message: 'chore(ci): synchronize maintained Nextcloud versions'
+          title: 'chore(ci): synchronize maintained Nextcloud versions'
+          body: |
+            Sync the reviewed Nextcloud version manifest with the upstream
+            Maintenance and Release Schedule wiki.
+
+            The discovery job requires official stable release artifacts and
+            amd64/arm64 FPM images. Review version additions/removals, patch
+            upgrades and EOL transitions before merging. Do not auto-merge.
+
+            The source is the upstream server wiki. This PR does not publish
+            any Docker images.
+          labels: dependencies
+
+      # GITHUB_TOKEN pushes do not automatically trigger push/PR workflows.
+      # workflow_dispatch does trigger; publishing is forbidden off main.
+      - name: Validate generated PR branch
+        if: contains(fromJSON('["created","updated"]'), steps.pull_request.outputs.pull-request-operation)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run docker-image.yml --repo "$GITHUB_REPOSITORY" --ref automation/nextcloud-supported-versions

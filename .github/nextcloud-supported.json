@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "source": "https://github.com/nextcloud/server/wiki/Maintenance-and-Release-Schedule",
+  "versions": [
+    {
+      "major": 33,
+      "release": "33.0.10",
+      "eol": "2027-02"
+    },
+    {
+      "major": 34,
+      "release": "34.0.5",
+      "eol": "2027-06"
+    },
+    {
+      "major": 35,
+      "release": "35.0.2",
+      "eol": "2027-09"
+    }
+  ]
+}

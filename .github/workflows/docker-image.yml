@@ -32,6 +32,14 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Setup Bats
+        uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43 # 4.0.0
+        with:
+          support-install: false
+          assert-install: false
+          detik-install: false
+          file-install: false
+
       - name: Run offline regression tests
         run: make test-ci-scripts
 
@@ -52,7 +60,7 @@ jobs:
 
       - name: Validate reviewed manifest and emit matrix
         id: approved
-        run: python3 scripts/nextcloud_versions.py matrix --github-output "$GITHUB_OUTPUT"
+        run: bash scripts/nextcloud-versions.sh matrix --github-output "$GITHUB_OUTPUT"
 
   app:
     name: app ${{ matrix.tag }}

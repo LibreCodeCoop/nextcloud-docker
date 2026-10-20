@@ -31,7 +31,7 @@ test-scan-images:
 	bash tests/test-scan-images.sh
 
 test-ci-scripts:
-	python3 -m unittest discover -s tests -p 'test_*.py' -v
+	bats tests/nextcloud-versions.bats
 
 test-development-image-scripts:
 	bats tests/nextcloud-development-image.bats

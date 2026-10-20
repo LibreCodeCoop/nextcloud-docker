@@ -23,7 +23,8 @@ The app image follows the tag structure used by the official Nextcloud images.
 | --- | --- | --- |
 | `:<major>-fpm` | Stable release channel within one Nextcloud major, for example `35-fpm` | Moving |
 | `:<full-version>-fpm` | A specific Nextcloud server release, for example `35.0.1-fpm` | Release-specific tag; may be rebuilt |
-| `:stable-fpm` | Current stable Nextcloud channel, when this alias is intentionally published | Moving |
+| `:stable-fpm` | Newest approved, supported stable major | Moving |
+| `:latest` | Compatibility alias of `stable-fpm` for existing consumers; not appropriate for pinned deployments | Moving |
 | `:master-fpm` | Development channel following Nextcloud Server `master` | Moving |
 | `@sha256:<digest>` | Exact OCI image content | Immutable |
 
@@ -40,6 +41,7 @@ The web image is not tied to a Nextcloud server version.
 Use:
 
 - `:main` for the moving image built from this repository's main development line;
+- `:latest` as a compatibility alias of `:main`;
 - `@sha256:<digest>` when an exact immutable image is required.
 
 Do not add a Nextcloud major to the web image tag unless the web image itself gains a real version-dependent contract.
@@ -71,7 +73,6 @@ A full Nextcloud release tag such as `35.0.1-fpm` identifies the server release 
 
 Do not introduce these as the repository convention:
 
-- bare `:latest`;
 - `:dev`;
 - `:dev-<major>`;
 - `:stable-<major>-fpm`;
@@ -79,7 +80,7 @@ Do not introduce these as the repository convention:
 - bare `:<major>`;
 - a development tag tied only to the next Nextcloud major.
 
-Historical tags may continue to exist temporarily while old implementations are replaced, but their existence does not make them part of this contract.
+Compatibility aliases `:latest` are intentionally maintained for the app and web images. They are moving tags, and an automatic Nextcloud major upgrade may not be safe. Other historical tags are not part of this contract.
 
 The historical development tag `:35` does not require a compatibility alias: the consumer inventory in #52 found no active consumer that depends on it.
 
@@ -211,3 +212,59 @@ Remaining work in #47 must continue incrementally. In particular:
 - keep LibreSign-specific behavior out of the generic runtime;
 - preserve scan and runtime-acceptance gates before publication;
 - preserve the existing Compose environment until a replacement is explicitly validated.
+
+## Approved maintained releases and automated discovery
+
+The **reviewed** `.github/nextcloud-supported.json` file is the only source for the stable-image CI matrix.
+It records the upstream source, schema version and each supported major's current patch release and EOL month.
+The latest supported major is the highest major in this reviewed list; no major is hardcoded into the image workflow.
+
+The `Discover maintained Nextcloud versions` workflow checks the upstream
+[Server maintenance wiki](https://github.com/nextcloud/server/wiki/Maintenance-and-Release-Schedule)
+twice each day and on manual dispatch. Discovery uses
+`scripts/nextcloud_versions.py` to extract the **Currently supported/maintained versions** table
+and verifies the independent **EOL Versions** table. It rejects changed table structures,
+duplicate majors, expired EOL months, future release dates and invalid version formats.
+It then checks the official `nextcloud-releases/server` release and the
+`nextcloud:<full-version>-fpm` Docker Hub tag for both AMD64 and ARM64.
+
+If the JSON changes, the watcher proposes an updating PR on
+`automation/nextcloud-supported-versions`, without merging it or publishing images.
+Generated PR commits use DCO sign-off and the verified GitHub Actions bot signature.
+The bot uses GitHub's signing API, not the interactive Git Signing MCP service.
+Because `GITHUB_TOKEN` PRs do not automatically trigger standard PR checks,
+the watcher dispatches the stable workflow on that branch for validation.
+Workflow dispatch on non-main branches can **only validate** and cannot push or promote images.
+
+If discovery fails, the workflow is red and emits a GitHub Actions error and job summary.
+**No manifest changes or PR are created on failure**. The last approved JSON remains intact.
+Enable GitHub Actions failure notifications so these errors do not go unnoticed.
+GitHub Actions must also be permitted to create pull requests in repository/organization settings.
+
+After a human reviews and merges the manifest PR, the stable workflow uses the committed JSON
+to build and scan each `nextcloud:<full-version>-fpm` with Bats runtime acceptance.
+The independent web image is built and scanned **once**, without tying it to a Nextcloud major.
+Only successful jobs push architecture-specific staging tags. After all jobs pass,
+`scripts/publish_images.py` publishes the versioned multi-platform manifests, followed by:
+
+- The `:<major>-fpm` channels for every approved, supported major.
+- The `:<full-version>-fpm` patch tags for the verified upstream releases.
+- App `:stable-fpm` and historical `:latest` aliases for the **newest** approved major.
+- Web `:main` and compatibility `:latest` aliases, independently of the app major.
+
+Images that reach EOL are **not deleted** from GHCR; they merely stop being rebuilt
+once their removal is approved. Existing deployments should pin a major or OCI digest.
+Do not point a live Nextcloud data volume at a moving cross-major `:latest` alias.
+An unreconciled EOL month in the reviewed JSON blocks the release workflow rather than
+building a potentially unsupported major.
+
+Offline regression tests include real wiki snapshots from 2023, 2024, 2025 and 2026,
+including a malformed upstream revision, and mocked Docker publication commands:
+
+```bash
+make test-ci-scripts
+```
+
+Stable publication is triggered by pushes to `main`, a weekly security rebuild or manual
+workflow dispatch on `main`. The `master-fpm` development channel remains on its separate
+daily upstream master workflow and does not depend on this reviewed JSON.

@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and publish maintained Nextcloud images
 
 on:
   push:
@@ -8,143 +8,183 @@ on:
     branches:
       - main
   workflow_dispatch:
+  schedule:
+    - cron: '13 4 * * 2'
 
 permissions:
   contents: read
 
+concurrency:
+  group: nextcloud-stable-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
-  REGISTRY: ghcr.io
+  APP_IMAGE: ghcr.io/librecodecoop/nextcloud-docker-app
+  WEB_IMAGE: ghcr.io/librecodecoop/nextcloud-docker-web
 
 jobs:
-  verify:
-    if: github.event_name == 'pull_request'
+  script-tests:
+    name: Test version and publication scripts
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        nextcloud_version: ['33-fpm', '34-fpm', '35-fpm']
-
-    permissions:
-      contents: read
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
-
-      - name: Build and scan runtime images
-        uses: ./.github/actions/build-and-scan
         with:
-          nextcloud_version: ${{ matrix.nextcloud_version }}
+          persist-credentials: false
 
-      - name: Save SARIF reports
-        uses: actions/upload-artifact@v6
+      - name: Run offline regression tests
+        run: make test-ci-scripts
+
+      - name: Test Trivy wrapper
+        run: bash tests/test-scan-images.sh
+
+  versions:
+    needs: script-tests
+    name: Load approved Nextcloud releases
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.approved.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
         with:
-          name: trivy-sarif-reports-${{ matrix.nextcloud_version }}
-          path: trivy-results/*.sarif
-          if-no-files-found: warn
+          persist-credentials: false
 
-  publish:
-    if: github.event_name != 'pull_request'
+      - name: Validate reviewed manifest and emit matrix
+        id: approved
+        run: python3 scripts/nextcloud_versions.py matrix --github-output "$GITHUB_OUTPUT"
+
+  app:
+    name: app ${{ matrix.tag }}
+    needs: [script-tests, versions]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        nextcloud_version: ['33-fpm', '34-fpm', '35-fpm']
-
+      matrix: ${{ fromJSON(needs.versions.outputs.matrix) }}
     permissions:
       contents: read
       packages: write
       security-events: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-      - name: Normalize repository name
-        id: repo_name
-        run: echo "value=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-
-      - name: Build and scan runtime images
+      - name: Build, scan, and test Nextcloud app
         uses: ./.github/actions/build-and-scan
         with:
-          nextcloud_version: ${{ matrix.nextcloud_version }}
+          component: app
+          nextcloud_version: ${{ matrix.release }}-fpm
 
-      - name: Upload app amd64 SARIF to GitHub code scanning
-        if: hashFiles('trivy-results/app-linux-amd64.sarif') != ''
+      - name: Upload amd64 security findings
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results/app-linux-amd64.sarif
-          category: trivy-app-linux-amd64-${{ matrix.nextcloud_version }}
+          category: trivy-app-linux-amd64-${{ matrix.tag }}
 
-      - name: Upload app arm64 SARIF to GitHub code scanning
-        if: hashFiles('trivy-results/app-linux-arm64.sarif') != ''
+      - name: Upload arm64 security findings
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results/app-linux-arm64.sarif
-          category: trivy-app-linux-arm64-${{ matrix.nextcloud_version }}
+          category: trivy-app-linux-arm64-${{ matrix.tag }}
 
-      - name: Upload web amd64 SARIF to GitHub code scanning
-        if: hashFiles('trivy-results/web-linux-amd64.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results/web-linux-amd64.sarif
-          category: trivy-web-linux-amd64-${{ matrix.nextcloud_version }}
-
-      - name: Upload web arm64 SARIF to GitHub code scanning
-        if: hashFiles('trivy-results/web-linux-arm64.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results/web-linux-arm64.sarif
-          category: trivy-web-linux-arm64-${{ matrix.nextcloud_version }}
-
-      - name: Save SARIF reports
+      - name: Save vulnerability reports
         uses: actions/upload-artifact@v6
         with:
-          name: trivy-sarif-reports-${{ matrix.nextcloud_version }}
+          name: trivy-app-${{ matrix.tag }}
           path: trivy-results/*.sarif
-          if-no-files-found: warn
+          if-no-files-found: error
 
-      - name: Log in to Container Registry
+      - name: Log in to GHCR
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: docker/login-action@v4.6.0
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push scanned architecture images
-        env:
-          APP_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app
-          WEB_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-web
-          IMAGE_VERSION: sha-${{ github.sha }}-${{ matrix.nextcloud_version }}
-        run: |
-          set -euo pipefail
+      - name: Stage validated architectures
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: python3 scripts/publish_images.py stage-app --image "$APP_IMAGE" --revision "$GITHUB_SHA" --tag "${{ matrix.tag }}"
 
-          docker tag scan/app:amd64 "${APP_IMAGE}:${IMAGE_VERSION}-amd64"
-          docker tag scan/app:arm64 "${APP_IMAGE}:${IMAGE_VERSION}-arm64"
-          docker tag scan/web:amd64 "${WEB_IMAGE}:${IMAGE_VERSION}-amd64"
-          docker tag scan/web:arm64 "${WEB_IMAGE}:${IMAGE_VERSION}-arm64"
+  web:
+    name: web runtime
+    needs: script-tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
-          docker push "${APP_IMAGE}:${IMAGE_VERSION}-amd64"
-          docker push "${APP_IMAGE}:${IMAGE_VERSION}-arm64"
-          docker push "${WEB_IMAGE}:${IMAGE_VERSION}-amd64"
-          docker push "${WEB_IMAGE}:${IMAGE_VERSION}-arm64"
+      - name: Build and scan web image once
+        uses: ./.github/actions/build-and-scan
+        with:
+          component: web
 
-      - name: Publish multi-platform image tags
-        env:
-          APP_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-app
-          WEB_IMAGE: ${{ env.REGISTRY }}/${{ steps.repo_name.outputs.value }}-web
-          IMAGE_VERSION: sha-${{ github.sha }}-${{ matrix.nextcloud_version }}
-        run: |
-          set -euo pipefail
+      - name: Upload amd64 security findings
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results/web-linux-amd64.sarif
+          category: trivy-web-linux-amd64
 
-          docker buildx imagetools create \
-            --tag "${APP_IMAGE}:${{ matrix.nextcloud_version }}" \
-            "${APP_IMAGE}:${IMAGE_VERSION}-amd64" \
-            "${APP_IMAGE}:${IMAGE_VERSION}-arm64"
+      - name: Upload arm64 security findings
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results/web-linux-arm64.sarif
+          category: trivy-web-linux-arm64
 
-          if [ "${{ matrix.nextcloud_version }}" = "35-fpm" ]; then
-            docker buildx imagetools create \
-              --tag "${WEB_IMAGE}:main" \
-              "${WEB_IMAGE}:${IMAGE_VERSION}-amd64" \
-              "${WEB_IMAGE}:${IMAGE_VERSION}-arm64"
-          fi
+      - name: Save vulnerability reports
+        uses: actions/upload-artifact@v6
+        with:
+          name: trivy-web
+          path: trivy-results/*.sarif
+          if-no-files-found: error
+
+      - name: Log in to GHCR
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Stage validated web architectures
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: python3 scripts/publish_images.py stage-web --image "$WEB_IMAGE" --revision "$GITHUB_SHA"
+
+  promote:
+    name: Publish versioned manifests and moving aliases
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [script-tests, versions, app, web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish approved images and aliases
+        run: python3 scripts/publish_images.py promote --app-image "$APP_IMAGE" --web-image "$WEB_IMAGE" --revision "$GITHUB_SHA"

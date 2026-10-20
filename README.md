@@ -206,7 +206,7 @@ docker compose -d
 
 Change the value of NEXTCLOUD_VERSION at `.env` file and put the tag name that you want to use. Check the availables tags here: https://hub.docker.com/_/nextcloud/tags
 
-The GHCR build workflow reads `NEXTCLOUD_VERSION` from `.env.example` and publishes the app and web images as static `:latest` tags so tools like Watchtower can track them reliably.
+The GHCR build workflow reads the reviewed `.github/nextcloud-supported.json` manifest, builds each maintained major using its current official patch release, and promotes the newest supported app image to `:stable-fpm` and the historical `:latest` alias. The web image is built independently as `:main` (with a `:latest` compatibility alias). Use explicit major tags in deployed stacks to avoid automatic Nextcloud major upgrades. See [image publishing and version discovery](docs/images.md).
 
 Build the images, down the containers and get up again:
 

@@ -41,9 +41,11 @@ teardown() {
 }
 
 @test "env reads the existing repository version source" {
+  expected_version=$(sed -n 's/^NEXTCLOUD_VERSION=//p' "$REPO_ROOT/.env.example" | head -n 1)
+  [ -n "$expected_version" ]
   run bash "$REPO_ROOT/bin/ncdd" env
   [ "$status" -eq 0 ]
-  [[ "$output" == *"NEXTCLOUD_VERSION=34-fpm"* ]]
+  [[ "$output" == *"NEXTCLOUD_VERSION=$expected_version"* ]]
 }
 
 @test "doctor exposes a machine-readable healthy state" {

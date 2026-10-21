@@ -5,7 +5,11 @@ inputs:
     description: Either app or web
     required: true
   nextcloud_version:
-    description: Official Nextcloud release tag for app builds (e.g. 35.0.2-fpm)
+    description: Official Nextcloud release tag for cache keys (e.g. 35.0.2-fpm)
+    required: false
+    default: ''
+  nextcloud_base_image:
+    description: Immutable approved Nextcloud image (tag and digest)
     required: false
     default: ''
 runs:
@@ -28,24 +32,6 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Resolve immutable upstream base
-      id: base
-      shell: bash
-      env:
-        COMPONENT: ${{ inputs.component }}
-        NEXTCLOUD_VERSION: ${{ inputs.nextcloud_version }}
-      run: |
-        set -euo pipefail
-        if [[ "$COMPONENT" == app ]]; then
-          image="nextcloud:$NEXTCLOUD_VERSION"
-        else
-          image=nginx:alpine
-        fi
-        digest="$(docker buildx imagetools inspect "$image" --format '{{.Manifest.Digest}}')"
-        [[ $digest =~ ^sha256:[a-f0-9]{64}$ ]] || exit 1
-        echo "image=${image%%:*}@$digest" >> "$GITHUB_OUTPUT"
-        echo "digest=$digest" >> "$GITHUB_OUTPUT"
-
     - name: Build app image (linux/amd64)
       if: inputs.component == 'app'
       uses: docker/build-push-action@v6
@@ -53,12 +39,8 @@ runs:
         context: .docker/app
         platforms: linux/amd64
         load: true
-        pull: true
         build-args: |
-          NEXTCLOUD_BASE_IMAGE=${{ steps.base.outputs.image }}
-        labels: |
-          org.opencontainers.image.base.digest=${{ steps.base.outputs.digest }}
-          org.opencontainers.image.revision=${{ github.sha }}
+          NEXTCLOUD_BASE_IMAGE=${{ inputs.nextcloud_base_image }}
         tags: scan/app:amd64
         cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-amd64
         cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-amd64
@@ -70,12 +52,8 @@ runs:
         context: .docker/app
         platforms: linux/arm64
         load: true
-        pull: true
         build-args: |
-          NEXTCLOUD_BASE_IMAGE=${{ steps.base.outputs.image }}
-        labels: |
-          org.opencontainers.image.base.digest=${{ steps.base.outputs.digest }}
-          org.opencontainers.image.revision=${{ github.sha }}
+          NEXTCLOUD_BASE_IMAGE=${{ inputs.nextcloud_base_image }}
         tags: scan/app:arm64
         cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-arm64
         cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-arm64
@@ -87,12 +65,6 @@ runs:
         context: .docker/web
         platforms: linux/amd64
         load: true
-        pull: true
-        build-args: |
-          NGINX_BASE_IMAGE=${{ steps.base.outputs.image }}
-        labels: |
-          org.opencontainers.image.base.digest=${{ steps.base.outputs.digest }}
-          org.opencontainers.image.revision=${{ github.sha }}
         tags: scan/web:amd64
         cache-from: type=gha,scope=web-amd64
         cache-to: type=gha,mode=max,scope=web-amd64
@@ -104,12 +76,6 @@ runs:
         context: .docker/web
         platforms: linux/arm64
         load: true
-        pull: true
-        build-args: |
-          NGINX_BASE_IMAGE=${{ steps.base.outputs.image }}
-        labels: |
-          org.opencontainers.image.base.digest=${{ steps.base.outputs.digest }}
-          org.opencontainers.image.revision=${{ github.sha }}
         tags: scan/web:arm64
         cache-from: type=gha,scope=web-arm64
         cache-to: type=gha,mode=max,scope=web-arm64

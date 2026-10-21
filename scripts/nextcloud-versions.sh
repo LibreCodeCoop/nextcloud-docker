@@ -53,10 +53,10 @@ validate_manifest() {
     ($root.versions | type == "array" and length >= 1 and length <= 5) and
     ($root.versions | all(.[];
       type == "object" and
-      (keys == ["eol","major","release"]) and
+      (keys == ["eol","image","major"]) and
       (.major | type == "number" and . >= 20 and . <= 99 and . == floor) and
-      (.release | type == "string" and test("^[0-9]{2,3}[.][0-9]+[.][0-9]+$")) and
-      ((.release | split(".")[0] | tonumber) == .major) and
+      (.image | type == "string" and test("^nextcloud:[0-9]{2,3}[.][0-9]+[.][0-9]+-fpm@sha256:[a-f0-9]{64}$")) and
+      ((.image | capture("^nextcloud:(?<major>[0-9]{2,3})[.]").major | tonumber) == .major) and
       (.eol | type == "string" and test("^20[0-9]{2}-(0[1-9]|1[0-2])$") and . >= $month)
     )) and
     ([$root.versions[].major] as $majors |
@@ -87,12 +87,13 @@ verify_release() {
     (.images | any(.[]; .os == "linux" and .architecture == "amd64")) and
     (.images | any(.[]; .os == "linux" and .architecture == "arm64"))
   ' <<< "$docker_tag" > /dev/null || error "Official image nextcloud:${release}-fpm lacks amd64 or arm64"
+  jq -er '.digest | select(test("^sha256:[a-f0-9]{64}$"))' <<< "$docker_tag"     || error "No valid digest for nextcloud:${release}-fpm"
 }
 
 case "$command_name" in
   matrix)
     validate_manifest "$manifest"
-    matrix=$(jq -c '{include: [.versions[] | {major, tag: ((.major | tostring) + "-fpm"), release}]}' "$manifest")
+    matrix=$(jq -c '{include: [.versions[] | {major, tag: ((.major | tostring) + "-fpm"), image, release: (.image | split(":")[1] | split("-fpm@")[0])}]}' "$manifest")
     if [[ -n $github_output ]]; then
       printf 'matrix=%s\n' "$matrix" >> "$github_output"
     else
@@ -116,14 +117,21 @@ case "$command_name" in
       [[ $released =~ ^20[0-9]{2}-[0-9]{2}-[0-9]{2}$ && $released < $today || $released == "$today" ]] \
         || error "Nextcloud $major release date is invalid or in the future: $released"
       [[ $(date -u -d "$released" +%F 2>/dev/null) == "$released" ]] || error "Invalid release date: $released"
-      if [[ $skip_upstream == false ]]; then verify_release "$release"; fi
+      digest="sha256:$(printf "%064d" 0)"
+      if [[ $skip_upstream == false ]]; then digest=$(verify_release "$release"); fi
+      image=''
+      if [[ -f $manifest ]]; then
+        image=$(jq -r --argjson major "$major" '.versions[]? | select(.major == $major) | .image // empty' "$manifest")
+      fi
+      if [[ -z $image ]]; then image="nextcloud:${release}-fpm@${digest}"; fi
+      printf '%s\t%s\t%s\n' "$major" "$image" "$eol" >> "$tmpdir/images.tsv"
     done < "$tmpdir/releases.tsv"
 
     jq -Rn --arg source "$source_url" '
       {schema_version: 1, source: $source,
        versions: ([inputs | split("\t") |
-         {major: (.[0] | tonumber), release: .[1], eol: .[2]}] | sort_by(.major))}
-    ' < "$tmpdir/releases.tsv" > "$tmpdir/manifest.json"
+         {major: (.[0] | tonumber), image: .[1], eol: .[2]}] | sort_by(.major))}
+    ' < "$tmpdir/images.tsv" > "$tmpdir/manifest.json"
 
     validate_manifest "$tmpdir/manifest.json"
     if [[ ! -f $manifest ]] || ! cmp -s "$tmpdir/manifest.json" "$manifest"; then

@@ -35,7 +35,7 @@ discover_fixture() {
   run discover_fixture 2026-supported 2026-10-20
   [ "$status" -eq 0 ]
   [ "$(jq -r '[.versions[].major] | join(",")' "$inventory")" = 33,34,35 ]
-  [ "$(jq -r '.versions[-1].release' "$inventory")" = 35.0.2 ]
+  [[ "$(jq -r '.versions[-1].image' "$inventory")" == nextcloud:35.0.2-fpm@sha256:* ]]
 }
 @test "historical EOL formatting variations do not change the supported majors" {
   run discover_fixture 2025-eol-structure 2025-10-27
@@ -103,7 +103,7 @@ case "$url" in
     ;;
   *hub.docker.com*)
     tag="${url##*/}"
-    printf '{"name":"%s","images":[{"os":"linux","architecture":"amd64"},{"os":"linux","architecture":"arm64"}]}\n' "$tag"
+    printf '{"name":"%s","digest":"sha256:%064d","images":[{"os":"linux","architecture":"amd64"},{"os":"linux","architecture":"arm64"}]}\n' "$tag" 0
     ;;
   *) exit 1 ;;
 esac
@@ -131,4 +131,21 @@ MOCK
   [ "$status" -ne 0 ]
   [[ "$output" == *'lacks amd64 or arm64'* ]]
   [ ! -f "$inventory" ]
+}
+
+@test "the manifest rejects an altered or incomplete Docker digest" {
+  discover_fixture 2026-supported 2026-10-20
+  jq '.versions[1].image = "nextcloud:34.0.5-fpm@sha256:invalid"' "$inventory" > "$TEST_ROOT/invalid.json"
+  run bash "$script" matrix --file "$TEST_ROOT/invalid.json" --today 2026-10-20
+  [ "$status" -ne 0 ]
+}
+
+@test "wiki discovery preserves Renovate-updated image refs" {
+  discover_fixture 2026-supported 2026-10-20
+  jq '.versions[2].image = "nextcloud:35.0.3-fpm@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"' "$inventory" > "$TEST_ROOT/renovate.json"
+  cp "$TEST_ROOT/renovate.json" "$inventory"
+  discover_fixture 2026-supported 2026-10-20
+  [ "$(jq -r '.versions[2].image' "$inventory")" = "nextcloud:35.0.3-fpm@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" ]
+  run bash "$script" matrix --file "$inventory" --today 2026-10-20
+  [ "$status" -eq 0 ]
 }

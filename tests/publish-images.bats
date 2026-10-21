@@ -58,7 +58,7 @@ teardown() {
   grep -Fx "buildx imagetools create --tag ${WEB_IMAGE}:latest ${WEB_IMAGE}:sha-${SHA}-web-amd64 ${WEB_IMAGE}:sha-${SHA}-web-arm64" "$DOCKER_COMMAND_LOG"
 }
 @test "latest follows Nextcloud 36 when approved, without code changes" {
-  jq '.versions = (.versions[1:] + [{"major":36,"release":"36.0.0","eol":"2099-12"}])' \
+  jq '.versions = (.versions[1:] + [{"major":36,"image":"nextcloud:36.0.0-fpm@sha256:0000000000000000000000000000000000000000000000000000000000000000","eol":"2099-12"}])' \
     "$INVENTORY" > "$TEST_ROOT/next.json"
   run bash "$script" promote "$APP_IMAGE" "$WEB_IMAGE" "$SHA" "$TEST_ROOT/next.json"
   [ "$status" -eq 0 ]

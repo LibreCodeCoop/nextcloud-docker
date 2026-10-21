@@ -59,9 +59,7 @@ Publication produces:
 
 Expired EOL months in the approved JSON stop the release workflow instead of silently rebuilding an unsupported version. Existing EOL tags are **not deleted automatically**; they stop being rebuilt after the reviewed inventory changes.
 
-Stable publication runs on pushes to `main`, reviewed workflow dispatches, or a scheduled update. Pull requests and non-`main` dispatches validate without publishing.
-
-Daily scheduled runs first compare the official Nextcloud and Nginx base image digests with the OCI provenance labels in the published AMD64 and ARM64 GHCR images. If all bases and the Git revision match, the application builds and publication are skipped. On Tuesdays a full rebuild still runs to pick up Debian/Alpine security package updates from `apt-get upgrade` and `apk upgrade`, which do not necessarily change the base digest. All scheduled builds still pass the existing Trivy and Bats release gates. The first run refreshes images lacking provenance labels. Full weekly rebuilds can still result in identical image contents; this check intentionally avoids daily waste without creating a second publication system.
+Stable publication runs on pushes to `main` or manual dispatch on `main`. Pull requests and non-`main` dispatches validate without publishing.
 
 ## Development image `master-fpm`
 
@@ -96,3 +94,20 @@ Keep tag naming consistent with the official Nextcloud model. Do not introduce `
 Dependabot manages Docker and GitHub Actions dependencies. Renovate is limited to regex-managed values Dependabot cannot discover (currently the explicitly pinned Trivy binary version), so the two bots do not manage the same dependency.
 
 The remaining implementation constraints tracked under #47 are to improve metadata when upstream identifiers become available, keep the stable and master publishing contracts aligned, preserve runtime and security gates, and maintain deployment compatibility until replacement approaches are validated.
+
+
+## Automatic Docker base updates
+
+The supported Nextcloud JSON is the source of truth for the immutable Docker
+base references. Renovate updates each supported image tag and digest in a
+reviewable pull request. New major versions and EOL transitions remain managed
+by the existing maintenance-wiki discovery workflow, which preserves the
+Renovate-managed references for already-supported versions.
+
+Dependabot manages the independent Nginx Dockerfile (also digest-pinned) and
+GitHub Actions. The stable Docker image workflow runs on pull requests and
+reviewed merges to main. It has no scheduled rebuild.
+
+The separate maintenance-wiki discovery cron is only for changes to the
+Nextcloud support inventory; it does not build or publish images. Docker base
+updates alone do not detect changes in unpinned APT/APK packages.

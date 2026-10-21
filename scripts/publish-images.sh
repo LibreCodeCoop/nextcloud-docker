@@ -47,7 +47,7 @@ promote() {
     publish "$app_image" "${major}-fpm" "$prefix"
     publish "$app_image" "${release}-fpm" "$prefix"
     latest_prefix=$prefix
-  done < <(jq -r '.versions[] | [.major, .release] | @tsv' "$manifest_file")
+  done < <(jq -r '.versions[] | [.major, (.image | split(":")[1] | split("-fpm@")[0])] | @tsv' "$manifest_file")
 
   [[ -n ${latest_prefix:-} ]] || fail "No approved stable Nextcloud major"
   publish "$app_image" stable-fpm "$latest_prefix"

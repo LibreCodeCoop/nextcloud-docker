@@ -128,6 +128,7 @@ jobs:
             coop.librecode.nextcloud.source.sha512=${{ steps.upstream.outputs.source_sha512 }}
             coop.librecode.nextcloud.base.digest=${{ steps.upstream.outputs.base_digest }}
             coop.librecode.runtime.variant=fpm
+          pull: true
           tags: scan/master:${{ matrix.arch }}
           cache-from: type=gha,scope=master-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=master-${{ matrix.arch }}

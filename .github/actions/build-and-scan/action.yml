@@ -37,6 +37,7 @@ runs:
         load: true
         build-args: |
           NEXTCLOUD_BASE_IMAGE=nextcloud:${{ inputs.nextcloud_version }}
+        pull: true
         tags: scan/app:amd64
         cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-amd64
         cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-amd64
@@ -50,6 +51,7 @@ runs:
         load: true
         build-args: |
           NEXTCLOUD_BASE_IMAGE=nextcloud:${{ inputs.nextcloud_version }}
+        pull: true
         tags: scan/app:arm64
         cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-arm64
         cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-arm64

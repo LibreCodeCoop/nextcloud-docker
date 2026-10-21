@@ -137,6 +137,13 @@ fpm_ready() {
   grep -Eq '"installed"[[:space:]]*:[[:space:]]*true' <<<"$response"
 }
 
+@test "app image uses a patched PHP runtime" {
+  run docker run --rm --network none --platform "$IMAGE_PLATFORM" \
+    --entrypoint php "$APP_IMAGE" -r \
+    '$minimum = ["8.2" => "8.2.35", "8.3" => "8.3.36", "8.4" => "8.4.27", "8.5" => "8.5.12"]; $series = PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION; exit(isset($minimum[$series]) && version_compare(PHP_VERSION, $minimum[$series], ">=") ? 0 : 1);'
+  [ "$status" -eq 0 ]
+}
+
 @test "app image installs Nextcloud and serves it through FPM" {
   echo "Testing $APP_IMAGE ($IMAGE_PLATFORM)"
 

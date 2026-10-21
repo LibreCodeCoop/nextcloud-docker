@@ -28,20 +28,16 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Resolve immutable official Nextcloud base
+    - name: Select Dependabot-managed Nextcloud base image
       if: inputs.component == 'app'
-      id: upstream
+      id: base
       shell: bash
+      env:
+        NEXTCLOUD_VERSION: ${{ inputs.nextcloud_version }}
       run: |
         set -euo pipefail
-        image="nextcloud:${{ inputs.nextcloud_version }}"
-        digest="$(docker buildx imagetools inspect "$image" --format '{{.Manifest.Digest}}')"
-        if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-          echo "Could not resolve immutable digest for $image" >&2
-          exit 1
-        fi
-        echo "digest=$digest" >> "$GITHUB_OUTPUT"
-        echo "image=nextcloud@$digest" >> "$GITHUB_OUTPUT"
+        base_image="$(bash scripts/select-nextcloud-base.sh "$NEXTCLOUD_VERSION")"
+        echo "image=$base_image" >> "$GITHUB_OUTPUT"
 
     - name: Build app image (linux/amd64)
       if: inputs.component == 'app'
@@ -51,13 +47,7 @@ runs:
         platforms: linux/amd64
         load: true
         build-args: |
-          NEXTCLOUD_BASE_IMAGE=${{ steps.upstream.outputs.image }}
-        labels: |
-          org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          org.opencontainers.image.revision=${{ github.sha }}
-          org.opencontainers.image.base.name=nextcloud:${{ inputs.nextcloud_version }}
-          coop.librecode.nextcloud.base.digest=${{ steps.upstream.outputs.digest }}
-        pull: true
+          NEXTCLOUD_BASE_IMAGE=${{ steps.base.outputs.image }}
         tags: scan/app:amd64
         cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-amd64
         cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-amd64
@@ -70,13 +60,7 @@ runs:
         platforms: linux/arm64
         load: true
         build-args: |
-          NEXTCLOUD_BASE_IMAGE=${{ steps.upstream.outputs.image }}
-        labels: |
-          org.opencontainers.image.source=https://github.com/${{ github.repository }}
-          org.opencontainers.image.revision=${{ github.sha }}
-          org.opencontainers.image.base.name=nextcloud:${{ inputs.nextcloud_version }}
-          coop.librecode.nextcloud.base.digest=${{ steps.upstream.outputs.digest }}
-        pull: true
+          NEXTCLOUD_BASE_IMAGE=${{ steps.base.outputs.image }}
         tags: scan/app:arm64
         cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-arm64
         cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-arm64

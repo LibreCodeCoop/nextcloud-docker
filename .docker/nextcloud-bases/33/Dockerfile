@@ -1,0 +1,1 @@
+FROM nextcloud:33.0.10-fpm@sha256:5263d2ecf8745ba3599e7d0323bbf3ec4758ce0273a47a1989abfa144bbfb94f

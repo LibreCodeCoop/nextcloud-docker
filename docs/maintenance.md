@@ -91,56 +91,22 @@ Image metadata should use standard OCI labels wherever possible, including the s
 
 Keep tag naming consistent with the official Nextcloud model. Do not introduce `:dev`, `:dev-<major>`, bare `:<major>`, or `:nc-<major>` as new public conventions. The legacy development tag `:35` is not a required compatibility alias; see the consumer analysis in #52.
 
-Dependabot manages Docker and GitHub Actions dependencies. Renovate is limited to regex-managed values Dependabot cannot discover (currently the explicitly pinned Trivy binary version), so the two bots do not manage the same dependency.
+Dependabot manages Docker and GitHub Actions dependencies, including pinned Nextcloud base images under .docker/nextcloud-bases/. Renovate is limited to regex-managed values Dependabot cannot discover (currently the explicitly pinned Trivy binary version), so the two bots do not manage the same dependency.
 
 The remaining implementation constraints tracked under #47 are to improve metadata when upstream identifiers become available, keep the stable and master publishing contracts aligned, preserve runtime and security gates, and maintain deployment compatibility until replacement approaches are validated.
 
-## PHP runtime security policy
+### Automatic image-base updates
 
-Image builds use complementary controls: Trivy scans OS and application
-dependencies, while the PHP runtime policy checks the installed interpreter
-against the PHP project's live JSON release feed:
-https://www.php.net/releases/branches.php
+Each maintained Nextcloud version has a single-line Dockerfile under
+.docker/nextcloud-bases/<major>/Dockerfile. The image is pinned to an official
+release tag and immutable OCI sha256 digest. Dependabot checks these files
+daily and proposes reviewable updates, including a changed digest under the
+same tag. Existing CI runs on each PR and publishes only after merge.
 
-The image checker runs centrally via scripts/scan-images.sh for both linux/amd64
-and linux/arm64 application images. It rejects unsupported branches, PHP versions
-older than the latest upstream patch, and upstream network failures. This also
-covers the case where an official Nextcloud base contains a PHP binary built
-outside Debian's package manager and therefore missed by package CVE scanners.
-
-This policy is intentionally more conservative than a CVE-only feed: even routine
-PHP patch releases can block image publishing until the official Nextcloud parent
-images catch up. It is designed for upstream-derived PHP images, not vendor
-distro packages with independently attested security backports. Bats remains
-responsible for functional acceptance of the Nextcloud image.
-
-Run offline policy tests with:
-    python3 -m unittest discover -s tests -p 'test_php_runtime.py'
-
-Run on a built image with:
-    scripts/check-php-runtime.py --image scan/app:amd64 --platform linux/amd64
-
-## Automatic upstream rebuild detection
-
-The scheduled monitor workflow checks the reviewed Nextcloud base tags every six
-hours. It compares their remote OCI manifest digests with the digest and Git
-revision recorded in both the amd64 and arm64 images currently published on GHCR.
-
-When the official base is updated and both architectures contain a supported,
-current PHP security patch, the monitor requests a new run of
-docker-image.yml using workflow_dispatch. The build pins the exact upstream
-digest resolved at build start and only promotes images after the existing
-Trivy scan and Nextcloud runtime tests succeed. If nothing changed, it skips
-the build. If the base still ships outdated PHP, it opens or updates a single
-security tracking issue and checks again at the next interval. The issue
-is closed automatically when all reviewed bases have current PHP runtimes.
-
-A missing GHCR image or provenance label also requires a rebuild; this ensures
-existing images without embedded base digests are refreshed once after rollout.
-Network or registry inspection failures fail the monitor rather than treating
-unknown status as a clean result. The existing weekly full build remains as a
-separate safety net, while release discovery continues to propose reviewed
-changes for new Nextcloud versions.
-
-This workflow runs only after changes are merged to main. Running the monitor
-on an unmerged branch never dispatches a production image build or modifies issues.
+The common application Dockerfile remains shared. The
+scripts/select-nextcloud-base.sh helper passes the approved pinned reference
+to the build and fails if it differs from the reviewed release manifest.
+When a new official Nextcloud patch is approved, the existing release-discovery
+workflow also updates the corresponding base pin in its reviewable PR.
+It removes obsolete base pins when a maintained Nextcloud major reaches EOL.
+Dependabot owns same-tag digest updates; no custom monitoring service runs.

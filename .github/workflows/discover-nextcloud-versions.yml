@@ -42,11 +42,40 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash scripts/nextcloud-versions.sh discover
 
+      - name: Pin bases for newly approved Nextcloud releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS=$'\t' read -r major release; do
+            file=".docker/nextcloud-bases/${major}/Dockerfile"
+            tag="nextcloud:${release}-fpm"
+            if [[ -f "$file" ]] && grep -Fq "FROM ${tag}@sha256:" "$file"; then
+              continue
+            fi
+            digest="$(docker buildx imagetools inspect "$tag" --format '{{.Manifest.Digest}}')"
+            [[ $digest =~ ^sha256:[0-9a-f]{64}$ ]] || exit 1
+            mkdir -p "$(dirname "$file")"
+            printf 'FROM %s@%s\n' "$tag" "$digest" > "$file"
+          done < <(jq -r '.versions[] | [.major,.release] | @tsv' .github/nextcloud-supported.json)
+          for file in .docker/nextcloud-bases/*/Dockerfile; do
+            major="${file%/Dockerfile}"
+            major="${major##*/}"
+            if ! jq -e --argjson major "$major" '.versions | any(.[]; .major == $major)' .github/nextcloud-supported.json > /dev/null; then
+              rm -- "$file"
+              rmdir -- "$(dirname "$file")"
+            fi
+          done
+
+      - name: Verify approved image base pins
+        run: bats tests/nextcloud-base.bats
+
       - name: Propose reviewed manifest update
         id: pull_request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
-          add-paths: .github/nextcloud-supported.json
+          add-paths: |
+            .github/nextcloud-supported.json
+            .docker/nextcloud-bases/**/Dockerfile
           branch: automation/nextcloud-supported-versions
           delete-branch: true
           signoff: true
@@ -55,7 +84,7 @@ jobs:
           title: 'chore(ci): synchronize maintained Nextcloud versions'
           body: |
             Sync the reviewed Nextcloud version manifest with the upstream
-            Maintenance and Release Schedule wiki.
+            Maintenance and Release Schedule wiki, including pinned base images.
 
             The discovery job requires official stable release artifacts and
             amd64/arm64 FPM images. Review version additions/removals, patch

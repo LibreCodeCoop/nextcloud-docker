@@ -15,6 +15,17 @@ updates:
     cooldown:
       default-days: 7
 
+  # Dependabot updates the explicit tag and digest in these real base files.
+  - package-ecosystem: docker
+    directories:
+      - /.docker/nextcloud-bases/*
+    schedule:
+      interval: daily
+    ignore:
+      - dependency-name: nextcloud
+        update-types:
+          - version-update:semver-major
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

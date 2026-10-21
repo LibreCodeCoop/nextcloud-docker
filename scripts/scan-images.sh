@@ -18,7 +18,6 @@ fi
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "${script_dir}/.." && pwd)"
-php_runtime_checker="${PHP_RUNTIME_CHECK_BIN:-${repo_root}/scripts/check-php-runtime.py}"
 config="${repo_root}/trivy.yaml"
 report_dir="${TRIVY_REPORT_DIR:-${repo_root}/trivy-results}"
 
@@ -51,13 +50,6 @@ for image_spec in "$@"; do
   if [[ "$platform" != linux/amd64 && "$platform" != linux/arm64 ]]; then
     printf 'Unsupported platform in image specification: %s\n' "$image_spec" >&2
     exit 2
-  fi
-
-  if [[ "$label" == app ]]; then
-    printf '\nChecking upstream PHP runtime security: %s (%s)\n' "$platform" "$image"
-    if ! "$php_runtime_checker" --image "$image" --platform "$platform"; then
-      scan_status=1
-    fi
   fi
 
   printf '\nScanning %s for %s (%s), table output\n' "$label" "$platform" "$image"

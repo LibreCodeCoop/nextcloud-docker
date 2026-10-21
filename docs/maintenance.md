@@ -59,7 +59,9 @@ Publication produces:
 
 Expired EOL months in the approved JSON stop the release workflow instead of silently rebuilding an unsupported version. Existing EOL tags are **not deleted automatically**; they stop being rebuilt after the reviewed inventory changes.
 
-Stable publication runs on pushes to `main`, a weekly rebuild schedule, or manual dispatch on `main`. Pull requests and non-`main` dispatches validate without publishing.
+Stable publication runs on pushes to `main`, reviewed workflow dispatches, or a scheduled update. Pull requests and non-`main` dispatches validate without publishing.
+
+Daily scheduled runs first compare the official Nextcloud and Nginx base image digests with the OCI provenance labels in the published AMD64 and ARM64 GHCR images. If all bases and the Git revision match, the application builds and publication are skipped. On Tuesdays a full rebuild still runs to pick up Debian/Alpine security package updates from `apt-get upgrade` and `apk upgrade`, which do not necessarily change the base digest. All scheduled builds still pass the existing Trivy and Bats release gates. The first run refreshes images lacking provenance labels. Full weekly rebuilds can still result in identical image contents; this check intentionally avoids daily waste without creating a second publication system.
 
 ## Development image `master-fpm`
 

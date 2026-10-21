@@ -149,3 +149,8 @@ MOCK
   run bash "$script" matrix --file "$inventory" --today 2026-10-20
   [ "$status" -eq 0 ]
 }
+
+@test "web Dockerfile uses a complete SHA256 digest" {
+  run grep -Eq '^FROM nginx:alpine@sha256:[a-f0-9]{64}$' .docker/web/Dockerfile
+  [ "$status" -eq 0 ]
+}

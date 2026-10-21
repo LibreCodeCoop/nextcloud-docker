@@ -119,3 +119,28 @@ Run offline policy tests with:
 
 Run on a built image with:
     scripts/check-php-runtime.py --image scan/app:amd64 --platform linux/amd64
+
+## Automatic upstream rebuild detection
+
+The scheduled monitor workflow checks the reviewed Nextcloud base tags every six
+hours. It compares their remote OCI manifest digests with the digest and Git
+revision recorded in both the amd64 and arm64 images currently published on GHCR.
+
+When the official base is updated and both architectures contain a supported,
+current PHP security patch, the monitor requests a new run of
+docker-image.yml using workflow_dispatch. The build pins the exact upstream
+digest resolved at build start and only promotes images after the existing
+Trivy scan and Nextcloud runtime tests succeed. If nothing changed, it skips
+the build. If the base still ships outdated PHP, it opens or updates a single
+security tracking issue and checks again at the next interval. The issue
+is closed automatically when all reviewed bases have current PHP runtimes.
+
+A missing GHCR image or provenance label also requires a rebuild; this ensures
+existing images without embedded base digests are refreshed once after rollout.
+Network or registry inspection failures fail the monitor rather than treating
+unknown status as a clean result. The existing weekly full build remains as a
+separate safety net, while release discovery continues to propose reviewed
+changes for new Nextcloud versions.
+
+This workflow runs only after changes are merged to main. Running the monitor
+on an unmerged branch never dispatches a production image build or modifies issues.

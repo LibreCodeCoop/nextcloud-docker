@@ -33,6 +33,7 @@ test-scan-images:
 test-ci-scripts:
 	bats tests/nextcloud-versions.bats tests/publish-images.bats
 	python3 -m unittest discover -s tests -p 'test_php_runtime.py'
+	python3 -m unittest discover -s tests -p 'test_upstream_monitor.py'
 
 test-development-image-scripts:
 	bats tests/nextcloud-development-image.bats

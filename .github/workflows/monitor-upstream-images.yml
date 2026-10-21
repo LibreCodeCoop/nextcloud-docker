@@ -1,0 +1,93 @@
+name: Monitor Nextcloud upstream images
+
+on:
+  schedule:
+    # Detect patched official images within six hours without rebuilding unchanged inputs.
+    - cron: '37 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+  issues: write
+
+concurrency:
+  group: nextcloud-upstream-image-monitor
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Detect base image changes and request rebuild
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout reviewed repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Test upstream monitor
+        run: |
+          python3 -m unittest discover -s tests -p 'test_upstream_monitor.py'
+          python3 -m unittest discover -s tests -p 'test_php_runtime.py'
+
+      - name: Verify reviewed Nextcloud release manifest
+        run: bash scripts/nextcloud-versions.sh matrix > /dev/null
+
+      - name: Compare upstream PHP, base digests and published GHCR images
+        id: upstream
+        run: |
+          python3 scripts/monitor-upstream-images.py \
+            --revision "$GITHUB_SHA" \
+            --output "$GITHUB_OUTPUT" \
+            --summary "$GITHUB_STEP_SUMMARY" \
+            --report "$RUNNER_TEMP/nextcloud-upstream-security.md"
+
+      - name: Open or update upstream security blocker
+        if: github.ref == 'refs/heads/main' && steps.upstream.outputs.blocked == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          title='security: upstream Nextcloud images need updated PHP'
+          body="$RUNNER_TEMP/nextcloud-upstream-security.md"
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search 'in:title "upstream Nextcloud images need updated PHP"' \
+            --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n1)"
+          if [[ -z "$number" ]]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$body"
+          else
+            current="$(gh issue view "$number" --repo "$GITHUB_REPOSITORY" --json body --jq .body)"
+            if [[ "$current" != "$(cat "$body")" ]]; then
+              gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+            fi
+          fi
+
+      - name: Close resolved upstream blocker
+        if: github.ref == 'refs/heads/main' && steps.upstream.outputs.blocked == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          title='security: upstream Nextcloud images need updated PHP'
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search 'in:title "upstream Nextcloud images need updated PHP"' \
+            --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n1)"
+          if [[ -n "$number" ]]; then
+            gh issue close "$number" --repo "$GITHUB_REPOSITORY" \
+              --comment 'The upstream PHP runtime is current in all reviewed Nextcloud base images.'
+          fi
+
+      # workflow_dispatch explicitly creates a new workflow run, including
+      # when invoked using GITHUB_TOKEN in this repository.
+      - name: Trigger image build after verified upstream change
+        if: github.ref == 'refs/heads/main' && steps.upstream.outputs.rebuild == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run docker-image.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo 'Requested automatic build through docker-image.yml.' >> "$GITHUB_STEP_SUMMARY"

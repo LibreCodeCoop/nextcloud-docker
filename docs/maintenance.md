@@ -94,3 +94,28 @@ Keep tag naming consistent with the official Nextcloud model. Do not introduce `
 Dependabot manages Docker and GitHub Actions dependencies. Renovate is limited to regex-managed values Dependabot cannot discover (currently the explicitly pinned Trivy binary version), so the two bots do not manage the same dependency.
 
 The remaining implementation constraints tracked under #47 are to improve metadata when upstream identifiers become available, keep the stable and master publishing contracts aligned, preserve runtime and security gates, and maintain deployment compatibility until replacement approaches are validated.
+
+## PHP runtime security policy
+
+Image builds use complementary controls: Trivy scans OS and application
+dependencies, while the PHP runtime policy checks the installed interpreter
+against the PHP project's live JSON release feed:
+https://www.php.net/releases/branches.php
+
+The image checker runs centrally via scripts/scan-images.sh for both linux/amd64
+and linux/arm64 application images. It rejects unsupported branches, PHP versions
+older than the latest upstream patch, and upstream network failures. This also
+covers the case where an official Nextcloud base contains a PHP binary built
+outside Debian's package manager and therefore missed by package CVE scanners.
+
+This policy is intentionally more conservative than a CVE-only feed: even routine
+PHP patch releases can block image publishing until the official Nextcloud parent
+images catch up. It is designed for upstream-derived PHP images, not vendor
+distro packages with independently attested security backports. Bats remains
+responsible for functional acceptance of the Nextcloud image.
+
+Run offline policy tests with:
+    python3 -m unittest discover -s tests -p 'test_php_runtime.py'
+
+Run on a built image with:
+    scripts/check-php-runtime.py --image scan/app:amd64 --platform linux/amd64

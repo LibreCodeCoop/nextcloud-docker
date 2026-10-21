@@ -8,6 +8,8 @@ on:
       - '.docker/app/**'
       - 'tests/app-image.bats'
       - 'scripts/scan-images.sh'
+      - 'scripts/check-php-runtime.py'
+      - 'tests/test_php_runtime.py'
       - 'trivy.yaml'
       - '.github/workflows/nextcloud-development.yml'
       - 'scripts/resolve-nextcloud-upstream.sh'
@@ -21,6 +23,8 @@ on:
       - '.docker/app/**'
       - 'tests/app-image.bats'
       - 'scripts/scan-images.sh'
+      - 'scripts/check-php-runtime.py'
+      - 'tests/test_php_runtime.py'
       - 'trivy.yaml'
       - '.github/workflows/nextcloud-development.yml'
       - 'scripts/resolve-nextcloud-upstream.sh'
@@ -64,6 +68,8 @@ jobs:
 
       - name: Test development image scripts
         run: bats tests/nextcloud-development-image.bats
+      - name: Test upstream PHP runtime security policy
+        run: python3 -m unittest discover -s tests -p 'test_php_runtime.py'
 
   validate:
     needs:

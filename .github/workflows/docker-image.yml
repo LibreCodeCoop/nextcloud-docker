@@ -9,7 +9,7 @@ on:
       - main
   workflow_dispatch:
   schedule:
-    - cron: '13 4 * * 2'
+    - cron: '13 4 * * *'
 
 permissions:
   contents: read
@@ -48,8 +48,7 @@ jobs:
 
       - name: ShellCheck image publication scripts
         run: |
-          shellcheck scripts/nextcloud-versions.sh scripts/select-nextcloud-base.sh \
-            scripts/publish-images.sh \
+          shellcheck scripts/nextcloud-versions.sh scripts/publish-images.sh \
             scripts/publish-manifest.sh scripts/push-architecture.sh \
             scripts/publish-master-manifest.sh scripts/push-master-architecture.sh
 

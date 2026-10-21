@@ -91,22 +91,6 @@ Image metadata should use standard OCI labels wherever possible, including the s
 
 Keep tag naming consistent with the official Nextcloud model. Do not introduce `:dev`, `:dev-<major>`, bare `:<major>`, or `:nc-<major>` as new public conventions. The legacy development tag `:35` is not a required compatibility alias; see the consumer analysis in #52.
 
-Dependabot manages Docker and GitHub Actions dependencies, including pinned Nextcloud base images under .docker/nextcloud-bases/. Renovate is limited to regex-managed values Dependabot cannot discover (currently the explicitly pinned Trivy binary version), so the two bots do not manage the same dependency.
+Dependabot manages Docker and GitHub Actions dependencies. Renovate is limited to regex-managed values Dependabot cannot discover (currently the explicitly pinned Trivy binary version), so the two bots do not manage the same dependency.
 
 The remaining implementation constraints tracked under #47 are to improve metadata when upstream identifiers become available, keep the stable and master publishing contracts aligned, preserve runtime and security gates, and maintain deployment compatibility until replacement approaches are validated.
-
-### Automatic image-base updates
-
-Each maintained Nextcloud version has a single-line Dockerfile under
-.docker/nextcloud-bases/<major>/Dockerfile. The image is pinned to an official
-release tag and immutable OCI sha256 digest. Dependabot checks these files
-daily and proposes reviewable updates, including a changed digest under the
-same tag. Existing CI runs on each PR and publishes only after merge.
-
-The common application Dockerfile remains shared. The
-scripts/select-nextcloud-base.sh helper passes the approved pinned reference
-to the build and fails if it differs from the reviewed release manifest.
-When a new official Nextcloud patch is approved, the existing release-discovery
-workflow also updates the corresponding base pin in its reviewable PR.
-It removes obsolete base pins when a maintained Nextcloud major reaches EOL.
-Dependabot owns same-tag digest updates; no custom monitoring service runs.

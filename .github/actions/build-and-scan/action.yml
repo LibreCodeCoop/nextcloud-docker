@@ -28,17 +28,6 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Select Dependabot-managed Nextcloud base image
-      if: inputs.component == 'app'
-      id: base
-      shell: bash
-      env:
-        NEXTCLOUD_VERSION: ${{ inputs.nextcloud_version }}
-      run: |
-        set -euo pipefail
-        base_image="$(bash scripts/select-nextcloud-base.sh "$NEXTCLOUD_VERSION")"
-        echo "image=$base_image" >> "$GITHUB_OUTPUT"
-
     - name: Build app image (linux/amd64)
       if: inputs.component == 'app'
       uses: docker/build-push-action@v6
@@ -46,8 +35,9 @@ runs:
         context: .docker/app
         platforms: linux/amd64
         load: true
+        pull: true
         build-args: |
-          NEXTCLOUD_BASE_IMAGE=${{ steps.base.outputs.image }}
+          NEXTCLOUD_BASE_IMAGE=nextcloud:${{ inputs.nextcloud_version }}
         tags: scan/app:amd64
         cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-amd64
         cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-amd64
@@ -59,8 +49,9 @@ runs:
         context: .docker/app
         platforms: linux/arm64
         load: true
+        pull: true
         build-args: |
-          NEXTCLOUD_BASE_IMAGE=${{ steps.base.outputs.image }}
+          NEXTCLOUD_BASE_IMAGE=nextcloud:${{ inputs.nextcloud_version }}
         tags: scan/app:arm64
         cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-arm64
         cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-arm64
@@ -72,6 +63,7 @@ runs:
         context: .docker/web
         platforms: linux/amd64
         load: true
+        pull: true
         tags: scan/web:amd64
         cache-from: type=gha,scope=web-amd64
         cache-to: type=gha,mode=max,scope=web-amd64
@@ -83,6 +75,7 @@ runs:
         context: .docker/web
         platforms: linux/arm64
         load: true
+        pull: true
         tags: scan/web:arm64
         cache-from: type=gha,scope=web-arm64
         cache-to: type=gha,mode=max,scope=web-arm64

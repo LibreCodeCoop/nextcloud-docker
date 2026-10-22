@@ -11,9 +11,7 @@ updates:
   - package-ecosystem: docker
     directory: /.docker/web
     schedule:
-      interval: weekly
-    cooldown:
-      default-days: 7
+      interval: daily
 
   - package-ecosystem: github-actions
     directory: /

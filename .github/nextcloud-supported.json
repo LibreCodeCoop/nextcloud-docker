@@ -4,17 +4,17 @@
   "versions": [
     {
       "major": 33,
-      "release": "33.0.10",
+      "image": "nextcloud:33.0.10-fpm@sha256:9b564a1f88b8ab80319fcdcb3982de3063d8c66e136121f2ed03274126d6858e",
       "eol": "2027-02"
     },
     {
       "major": 34,
-      "release": "34.0.5",
+      "image": "nextcloud:34.0.5-fpm@sha256:debf3a90c0efc3a31f3c48e3c211ee3148983361c3d10a6a6bb8c13d7610463d",
       "eol": "2027-06"
     },
     {
       "major": 35,
-      "release": "35.0.2",
+      "image": "nextcloud:35.0.2-fpm@sha256:2556e045d57fff50d2b50ddd160d2d0730e6d5b6f71c33b903d491baa8444f03",
       "eol": "2027-09"
     }
   ]

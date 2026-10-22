@@ -8,8 +8,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-  schedule:
-    - cron: '13 4 * * 2'
 
 permissions:
   contents: read
@@ -90,6 +88,7 @@ jobs:
         with:
           component: app
           nextcloud_version: ${{ matrix.release }}-fpm
+          nextcloud_base_image: ${{ matrix.image }}
 
       - name: Upload amd64 security findings
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

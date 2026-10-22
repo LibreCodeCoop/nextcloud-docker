@@ -5,7 +5,11 @@ inputs:
     description: Either app or web
     required: true
   nextcloud_version:
-    description: Official Nextcloud release tag for app builds (e.g. 35.0.2-fpm)
+    description: Official Nextcloud release tag for cache keys (e.g. 35.0.2-fpm)
+    required: false
+    default: ''
+  nextcloud_base_image:
+    description: Immutable approved Nextcloud image (tag and digest)
     required: false
     default: ''
 runs:
@@ -36,7 +40,7 @@ runs:
         platforms: linux/amd64
         load: true
         build-args: |
-          NEXTCLOUD_BASE_IMAGE=nextcloud:${{ inputs.nextcloud_version }}
+          NEXTCLOUD_BASE_IMAGE=${{ inputs.nextcloud_base_image }}
         tags: scan/app:amd64
         cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-amd64
         cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-amd64
@@ -49,7 +53,7 @@ runs:
         platforms: linux/arm64
         load: true
         build-args: |
-          NEXTCLOUD_BASE_IMAGE=nextcloud:${{ inputs.nextcloud_version }}
+          NEXTCLOUD_BASE_IMAGE=${{ inputs.nextcloud_base_image }}
         tags: scan/app:arm64
         cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-arm64
         cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-arm64

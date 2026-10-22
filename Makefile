@@ -31,6 +31,7 @@ test-scan-images:
 	bash tests/test-scan-images.sh
 
 test-ci-scripts:
+	python3 tests/check-action-pins.py
 	bats tests/nextcloud-versions.bats tests/publish-images.bats
 
 test-development-image-scripts:

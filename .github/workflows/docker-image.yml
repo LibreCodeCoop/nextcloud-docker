@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -58,7 +58,7 @@ jobs:
       matrix: ${{ steps.approved.outputs.matrix }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -79,7 +79,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -92,14 +92,14 @@ jobs:
 
       - name: Upload amd64 security findings
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3.39.1
         with:
           sarif_file: trivy-results/app-linux-amd64.sarif
           category: trivy-app-linux-amd64-${{ matrix.tag }}
 
       - name: Upload arm64 security findings
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3.39.1
         with:
           sarif_file: trivy-results/app-linux-arm64.sarif
           category: trivy-app-linux-arm64-${{ matrix.tag }}
@@ -113,7 +113,7 @@ jobs:
 
       - name: Log in to GHCR
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -133,7 +133,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -144,14 +144,14 @@ jobs:
 
       - name: Upload amd64 security findings
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3.39.1
         with:
           sarif_file: trivy-results/web-linux-amd64.sarif
           category: trivy-web-linux-amd64
 
       - name: Upload arm64 security findings
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3.39.1
         with:
           sarif_file: trivy-results/web-linux-arm64.sarif
           category: trivy-web-linux-arm64
@@ -165,7 +165,7 @@ jobs:
 
       - name: Log in to GHCR
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -185,15 +185,15 @@ jobs:
       packages: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Log in to GHCR
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   ncdd:
-    uses: LibreCodeCoop/nextcloud-docker/.github/workflows/test-nextcloud-app.yml@main
+    uses: LibreCodeCoop/nextcloud-docker/.github/workflows/test-nextcloud-app.yml@80dfe8632a448436ae8c5adb61e845d9e73dcadc # main
     with:
       suite: ${{ inputs.suite || 'phpunit' }}
       target: ${{ inputs.target || '' }}

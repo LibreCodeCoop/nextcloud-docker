@@ -91,7 +91,7 @@ Image metadata should use standard OCI labels wherever possible, including the s
 
 Keep tag naming consistent with the official Nextcloud model. Do not introduce `:dev`, `:dev-<major>`, bare `:<major>`, or `:nc-<major>` as new public conventions. The legacy development tag `:35` is not a required compatibility alias; see the consumer analysis in #52.
 
-Dependabot manages Docker and GitHub Actions dependencies. Renovate is limited to regex-managed values Dependabot cannot discover (currently the explicitly pinned Trivy binary version), so the two bots do not manage the same dependency.
+Dependabot manages Docker and GitHub Actions references, including commit SHA pins and their release-version comments. Renovate handles only regex-managed values (Nextcloud image digests and the Trivy binary version), so the bots do not manage the same dependency. The CI rejects mutable external Actions references. The NCDD reusable-workflow example pins a source-branch snapshot; refresh its commit when updating that template.
 
 The remaining implementation constraints tracked under #47 are to improve metadata when upstream identifiers become available, keep the stable and master publishing contracts aligned, preserve runtime and security gates, and maintain deployment compatibility until replacement approaches are validated.
 

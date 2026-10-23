@@ -32,6 +32,7 @@ test-scan-images:
 
 test-ci-scripts:
 	bats tests/check-action-pins.bats \
+		tests/compose-images.bats \
 		tests/nextcloud-versions.bats \
 		tests/publish-images.bats
 

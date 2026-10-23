@@ -34,7 +34,7 @@ services:
       - ./garage/data:/var/lib/garage/data
 
   app:
-    image: ghcr.io/librecodecoop/nextcloud-docker-app:${NEXTCLOUD_VERSION:-35-fpm}
+    image: ghcr.io/librecodecoop/nextcloud-docker-app:${NEXTCLOUD_VERSION:-stable-fpm}
     restart: unless-stopped
     volumes:
       - ./volumes/nextcloud:/var/www/html
@@ -97,7 +97,7 @@ services:
       - reverse-proxy
 
   cron:
-    image: ghcr.io/librecodecoop/nextcloud-docker-app:${NEXTCLOUD_VERSION:-35-fpm}
+    image: ghcr.io/librecodecoop/nextcloud-docker-app:${NEXTCLOUD_VERSION:-stable-fpm}
     restart: unless-stopped
     environment:
       - TZ

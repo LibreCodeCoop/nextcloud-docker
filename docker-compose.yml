@@ -13,7 +13,7 @@ services:
       - internal
 
   app:
-    image: ghcr.io/librecodecoop/nextcloud-docker-app:${NEXTCLOUD_VERSION:-35-fpm}
+    image: ghcr.io/librecodecoop/nextcloud-docker-app:${NEXTCLOUD_VERSION:-stable-fpm}
     volumes:
       - ./volumes/nextcloud:/var/www/html
       - ./app-hooks/pre-installation:/docker-entrypoint-hooks.d/pre-installation
@@ -61,7 +61,7 @@ services:
       - reverse-proxy
 
   cron:
-    image: ghcr.io/librecodecoop/nextcloud-docker-app:${NEXTCLOUD_VERSION:-35-fpm}
+    image: ghcr.io/librecodecoop/nextcloud-docker-app:${NEXTCLOUD_VERSION:-stable-fpm}
     restart: unless-stopped
     environment:
       - TZ

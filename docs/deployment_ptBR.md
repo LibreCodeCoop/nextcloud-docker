@@ -23,11 +23,11 @@ Crie essas redes **uma única vez**, caso ainda não existam. Configure separada
 cp .env.example .env
 ```
 
-Edite o `.env` antes de iniciar os serviços. Informe, no mínimo, as credenciais do administrador, a senha do banco e o domínio público.
+Edite o `.env` antes de iniciar os serviços. Informe, no mínimo, as credenciais do administrador, a senha do banco e o domínio público. O exemplo seleciona `stable-fpm`, que acompanha a versão principal aprovada mais recente; fixe uma tag de versão principal suportada antes da implantação em produção para evitar atualizações inesperadas.
 
 | Variável | Finalidade |
 | --- | --- |
-| `NEXTCLOUD_VERSION` | Tag da **imagem de aplicação publicada pela LibreCode no GHCR** para `app` e `cron`, por exemplo `35-fpm` |
+| `NEXTCLOUD_VERSION` | Tag da **imagem de aplicação publicada pela LibreCode no GHCR** para `app` e `cron`; padrão `stable-fpm` (móvel); utilize uma tag de versão principal em produção |
 | `VIRTUAL_HOST`, `LETSENCRYPT_HOST` | Domínio público utilizado pelo proxy |
 | `LETSENCRYPT_EMAIL` | E-mail de contato para os certificados |
 | `NEXTCLOUD_TRUSTED_DOMAINS` | Domínios confiáveis, incluindo o domínio público e o host interno `web`, quando aplicável |

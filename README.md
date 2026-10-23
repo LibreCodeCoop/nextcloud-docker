@@ -34,6 +34,8 @@ For environment variables, existing deployments, storage options, and troublesho
 
 Set `NEXTCLOUD_VERSION` in `.env` to select the **published LibreCode application image tag** for both `app` and `cron`. The `web` service uses the independent `nextcloud-docker-web:main` image. The default Compose deployment does not build images locally.
 
+The sample `.env.example` uses the moving `stable-fpm` channel. Set `NEXTCLOUD_VERSION` to a maintained major-specific tag (for example, `35-fpm`) before production deployment so a future image pull does not switch Nextcloud majors unexpectedly.
+
 Prebuilt LibreCode application images use versioned tags, such as:
 
 ```text

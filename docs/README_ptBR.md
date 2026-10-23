@@ -34,6 +34,8 @@ Para variáveis de ambiente, instalações existentes, armazenamento e solução
 
 Defina `NEXTCLOUD_VERSION` no arquivo `.env` para selecionar a **tag da imagem de aplicação publicada pela LibreCode** para os serviços `app` e `cron`. O serviço `web` utiliza a imagem independente `nextcloud-docker-web:main`. O Compose padrão não constrói imagens localmente.
 
+O arquivo `.env.example` utiliza o canal móvel `stable-fpm`. Antes de implantar em produção, configure `NEXTCLOUD_VERSION` com uma tag de versão principal ainda suportada (por exemplo, `35-fpm`), para evitar a troca inesperada de versão principal em futuras atualizações das imagens.
+
 As imagens de aplicação da LibreCode disponibilizam tags por versão, por exemplo:
 
 ```text

@@ -23,11 +23,11 @@ Create these networks **once** if they do not exist. Configure the proxy service
 cp .env.example .env
 ```
 
-Edit `.env` before running the services. At a minimum, provide administrator credentials, the database password, and your public domain.
+Edit `.env` before running the services. At a minimum, provide administrator credentials, the database password, and your public domain. The sample selects `stable-fpm`, which moves to the newest approved major; pin a maintained major-specific tag before production deployment to avoid unintended major upgrades.
 
 | Variable | Purpose |
 | --- | --- |
-| `NEXTCLOUD_VERSION` | Tag of the **published LibreCode GHCR application image** used by `app` and `cron`, e.g. `35-fpm` |
+| `NEXTCLOUD_VERSION` | Tag of the **published LibreCode GHCR application image** used by `app` and `cron`; default `stable-fpm` (moving); use a supported major tag for production |
 | `VIRTUAL_HOST`, `LETSENCRYPT_HOST` | Public domain passed to the external proxy |
 | `LETSENCRYPT_EMAIL` | Contact email for certificate management |
 | `NEXTCLOUD_TRUSTED_DOMAINS` | Trusted hostnames, including the public domain and the internal `web` host where applicable |

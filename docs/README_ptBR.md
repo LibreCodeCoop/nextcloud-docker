@@ -22,7 +22,8 @@ cp .env.example .env
 # Edite .env: domínio, credenciais, administrador e versão do Nextcloud.
 docker network create reverse-proxy
 docker network create postgres
-docker compose -f docker-compose.yml -f docker-compose-postgres.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose-postgres.yml pull
+docker compose -f docker-compose.yml -f docker-compose-postgres.yml up -d
 ```
 
 O proxy reverso deve estar configurado e conectado à rede externa `reverse-proxy`. Configure também o DNS antes de esperar que o HTTPS funcione. Em produção, revise a versão do PostgreSQL usada no exemplo, os backups e as migrações dos volumes.
@@ -31,7 +32,9 @@ Para variáveis de ambiente, instalações existentes, armazenamento e solução
 
 ## Versões e atualizações do Nextcloud
 
-Defina `NEXTCLOUD_VERSION` no arquivo `.env` para selecionar a **imagem-base oficial do Nextcloud** utilizada no build local do Docker Compose. Isso é diferente da publicação das imagens da LibreCode no GHCR.
+Defina `NEXTCLOUD_VERSION` no arquivo `.env` para selecionar a **tag da imagem de aplicação publicada pela LibreCode** para os serviços `app` e `cron`. O serviço `web` utiliza a imagem independente `nextcloud-docker-web:main`. O Compose padrão não constrói imagens localmente.
+
+O arquivo `.env.example` utiliza o canal móvel `stable-fpm`. Antes de implantar em produção, configure `NEXTCLOUD_VERSION` com uma tag de versão principal ainda suportada (por exemplo, `35-fpm`), para evitar a troca inesperada de versão principal em futuras atualizações das imagens.
 
 As imagens de aplicação da LibreCode disponibilizam tags por versão, por exemplo:
 

@@ -1,6 +1,6 @@
 # Implantação e personalização
 
-Este guia explica o ambiente Docker Compose fornecido pelo repositório. O Compose **constrói as imagens da aplicação e do servidor web localmente**. Por padrão, ele não utiliza as imagens pré-compiladas da LibreCode no GHCR.
+Este guia explica o ambiente Docker Compose fornecido pelo repositório. A configuração padrão **utiliza as imagens publicadas pela LibreCode no GHCR**: `app` e `cron` compartilham uma imagem de aplicação versionada, enquanto `web` utiliza a imagem publicada do Nginx. Os mantenedores ainda podem utilizar os comandos específicos para builds locais.
 
 Volte para a [apresentação do projeto](README_ptBR.md) ou consulte as [tags das imagens publicadas](images.md).
 
@@ -23,11 +23,11 @@ Crie essas redes **uma única vez**, caso ainda não existam. Configure separada
 cp .env.example .env
 ```
 
-Edite o `.env` antes de iniciar os serviços. Informe, no mínimo, as credenciais do administrador, a senha do banco e o domínio público.
+Edite o `.env` antes de iniciar os serviços. Informe, no mínimo, as credenciais do administrador, a senha do banco e o domínio público. O exemplo seleciona `stable-fpm`, que acompanha a versão principal aprovada mais recente; fixe uma tag de versão principal suportada antes da implantação em produção para evitar atualizações inesperadas.
 
 | Variável | Finalidade |
 | --- | --- |
-| `NEXTCLOUD_VERSION` | Versão/tag da **imagem-base oficial do Nextcloud** utilizada no build local, por exemplo `35-fpm` |
+| `NEXTCLOUD_VERSION` | Tag da **imagem de aplicação publicada pela LibreCode no GHCR** para `app` e `cron`; padrão `stable-fpm` (móvel); utilize uma tag de versão principal em produção |
 | `VIRTUAL_HOST`, `LETSENCRYPT_HOST` | Domínio público utilizado pelo proxy |
 | `LETSENCRYPT_EMAIL` | E-mail de contato para os certificados |
 | `NEXTCLOUD_TRUSTED_DOMAINS` | Domínios confiáveis, incluindo o domínio público e o host interno `web`, quando aplicável |
@@ -46,7 +46,8 @@ Consulte `docker-compose.yml` e `.env.example` para verificar as variáveis usad
 A configuração padrão combina o Compose principal com a extensão do PostgreSQL:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose-postgres.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose-postgres.yml pull
+docker compose -f docker-compose.yml -f docker-compose-postgres.yml up -d
 ```
 
 O Compose principal contém Nextcloud FPM, Nginx, Redis e cron. A extensão adiciona o PostgreSQL e conecta os serviços da aplicação e do cron à rede do banco.
@@ -64,16 +65,16 @@ docker compose -f docker-compose.yml -f docker-compose-postgres.yml \
 
 ## Escolher e atualizar a versão do Nextcloud
 
-Altere `NEXTCLOUD_VERSION` no arquivo `.env` para escolher a imagem oficial utilizada nos builds locais. Essa variável **não define** quais versões são publicadas pela LibreCode no GHCR.
+Altere `NEXTCLOUD_VERSION` no arquivo `.env` para escolher uma tag publicada da imagem de aplicação da LibreCode, utilizada por `app` e `cron`. Essa variável **não define** quais versões são construídas e publicadas pela LibreCode no GHCR.
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose-postgres.yml build --pull
+docker compose -f docker-compose.yml -f docker-compose-postgres.yml pull app cron web
 docker compose -f docker-compose.yml -f docker-compose-postgres.yml up -d
 ```
 
 Faça backup do banco de dados, da configuração e dos arquivos persistidos antes de atualizar. Confira as exigências de compatibilidade do Nextcloud: downgrade ou saltos não suportados entre versões podem impedir o uso dos dados. Prefira atualizações de versões principais planejadas.
 
-Para quem utiliza as imagens do GHCR, consulte a [política de tags e atualizações](images.md).
+Consulte a [política de tags e atualizações](images.md) antes de mudar de versão principal ou utilizar digests OCI imutáveis.
 
 ## Armazenamento primário opcional com Garage S3
 

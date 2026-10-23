@@ -1,0 +1,5 @@
+--- a/lib/Service/SearchService.php
++++ b/lib/Service/SearchService.php
+@@ -95 +95 @@
+-		$userId = $this->filesService->secureUsername($searchResult->getRequest()->getAuthor());
++		$userId = $searchResult->getRequest()->getAuthor();

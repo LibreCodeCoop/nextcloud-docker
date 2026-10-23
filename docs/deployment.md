@@ -109,6 +109,12 @@ services:
 
 PHP-FPM pool settings can also be mounted into `/usr/local/etc/php-fpm.d/`. Keep changes compatible with the underlying Nextcloud PHP version and workload.
 
+## Temporary Full Text Search fix for dotted UIDs (Nextcloud 35)
+
+The before-starting hook applies the upstream [files_fulltextsearch dotted-UID fix](https://github.com/nextcloud/files_fulltextsearch/issues/389) to affected 35.x app installations. It is safe to run again and skips the app if the fix is already present.
+
+An App Store update performed while Nextcloud is running does **not** invoke this hook. Restart the application container after such updates so that the fix is reapplied if still required. Remove this workaround when the official app includes the correction.
+
 ## Logs and troubleshooting
 
 ```bash

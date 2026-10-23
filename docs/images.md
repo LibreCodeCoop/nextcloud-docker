@@ -9,7 +9,7 @@ The LibreCode Nextcloud images let you choose a maintained Nextcloud release for
 | `ghcr.io/librecodecoop/nextcloud-docker-app` | Nextcloud application runtime with PHP-FPM |
 | `ghcr.io/librecodecoop/nextcloud-docker-web` | Nginx web runtime; independent of the Nextcloud major |
 
-The [repository's Docker Compose example](deployment.md) builds its images locally from the official `nextcloud:${NEXTCLOUD_VERSION}` base. It does not automatically pull these GHCR images.
+The [repository's Docker Compose example](deployment.md) uses these published GHCR images by default. `NEXTCLOUD_VERSION` selects the application tag shared by `app` and `cron`; `web` uses the independent `:main` tag. Pull images explicitly for planned updates.
 
 ## Application tags
 

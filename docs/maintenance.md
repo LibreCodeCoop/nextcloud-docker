@@ -15,7 +15,7 @@ For daily builds, `NEXTCLOUD_DAILY_URL` identifies the upstream archive. The Doc
 
 The generic image retains required runtime dependencies such as Poppler, UTF-8 locale support, and the PHP bz2 extension. Avoid reinstalling extensions already provided by the official Nextcloud base. Keep LibreSign-specific behavior outside this generic runtime.
 
-The repository Compose example uses `NEXTCLOUD_VERSION` to select the **published LibreCode application image tag** for `app` and `cron`. Builds stay in CI and explicit maintainer commands; this setting does not control the GHCR publication matrix.
+The repository Compose example uses `NEXTCLOUD_VERSION` to select the **published LibreCode application image tag** for `app` and `cron`. Builds stay in CI and explicit maintainer commands; this setting does not control the GHCR publication matrix. The `make test-current-app-image` and `make scan-images` maintenance targets use the newest reviewed upstream image reference from `.github/nextcloud-supported.json` (overridable with `APP_BASE_IMAGE`), independently of the deployment image selector.
 
 ## Reviewed stable-version inventory
 

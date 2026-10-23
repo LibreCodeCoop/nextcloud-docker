@@ -43,3 +43,15 @@ assert_published_images() {
   run grep -Fx "NEXTCLOUD_VERSION=stable-fpm" "$REPO_ROOT/.env.example"
   [ "$status" -eq 0 ]
 }
+
+@test "maintainer builds use the reviewed upstream base independent of the Compose channel" {
+  local approved_base target
+  approved_base=$(jq -er '.versions[-1].image' "$REPO_ROOT/.github/nextcloud-supported.json")
+
+  for target in test-current-app-image scan-images; do
+    run make --no-print-directory -n -C "$REPO_ROOT" "$target"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"base_image='$approved_base'"* ]]
+    [[ "$output" == *'NEXTCLOUD_BASE_IMAGE=$base_image'* ]]
+  done
+}

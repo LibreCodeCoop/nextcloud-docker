@@ -1,6 +1,8 @@
 COMPOSE ?= docker compose
 GARAGES3_COMPOSE_FILE ?= docker-compose-garages3.yml
 APP_TEST_IMAGE ?= nextcloud-app:acceptance
+# Maintainer builds use the latest reviewed upstream base, not the deployment image channel.
+APP_BASE_IMAGE ?= $(shell jq -er '.versions[-1].image' .github/nextcloud-supported.json)
 
 .PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test-scan-images test-ci-scripts test-development-image-scripts test-ncdd test-app-image test-current-app-image scan-images
 
@@ -48,20 +50,20 @@ test-app-image:
 
 test-current-app-image:
 	@set -e; \
-	  version="$$(sed -n 's/^NEXTCLOUD_VERSION=//p' .env.example | head -n 1)"; \
-	  test -n "$$version" || { echo 'NEXTCLOUD_VERSION is missing from .env.example' >&2; exit 1; }; \
+	  base_image='$(APP_BASE_IMAGE)'; \
+	  test -n "$$base_image" || { echo 'No approved Nextcloud image in .github/nextcloud-supported.json' >&2; exit 1; }; \
 	  docker buildx build --platform linux/amd64 --load --tag "$(APP_TEST_IMAGE)" \
-	    --build-arg "NEXTCLOUD_BASE_IMAGE=nextcloud:$version" --file .docker/app/Dockerfile .docker/app; \
+	    --build-arg "NEXTCLOUD_BASE_IMAGE=$$base_image" --file .docker/app/Dockerfile .docker/app; \
 	  $(MAKE) test-app-image APP_IMAGE="$(APP_TEST_IMAGE)"
 
 scan-images:
 	@set -e; \
-	  version="$$(sed -n 's/^NEXTCLOUD_VERSION=//p' .env.example | head -n 1)"; \
-	  test -n "$$version" || { echo 'NEXTCLOUD_VERSION is missing from .env.example' >&2; exit 1; }; \
+	  base_image='$(APP_BASE_IMAGE)'; \
+	  test -n "$$base_image" || { echo 'No approved Nextcloud image in .github/nextcloud-supported.json' >&2; exit 1; }; \
 	  docker buildx build --platform linux/amd64 --load --tag nextcloud-app:scan-amd64 \
-	    --build-arg "NEXTCLOUD_BASE_IMAGE=nextcloud:$version" --file .docker/app/Dockerfile .docker/app; \
+	    --build-arg "NEXTCLOUD_BASE_IMAGE=$$base_image" --file .docker/app/Dockerfile .docker/app; \
 	  docker buildx build --platform linux/arm64 --load --tag nextcloud-app:scan-arm64 \
-	    --build-arg "NEXTCLOUD_BASE_IMAGE=nextcloud:$version" --file .docker/app/Dockerfile .docker/app; \
+	    --build-arg "NEXTCLOUD_BASE_IMAGE=$$base_image" --file .docker/app/Dockerfile .docker/app; \
 	  docker buildx build --platform linux/amd64 --load --tag nextcloud-web:scan-amd64 \
 	    --file .docker/web/Dockerfile .docker/web; \
 	  docker buildx build --platform linux/arm64 --load --tag nextcloud-web:scan-arm64 \

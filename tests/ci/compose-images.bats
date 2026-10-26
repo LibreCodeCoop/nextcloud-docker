@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 setup() {
-  REPO_ROOT=$(cd "$BATS_TEST_DIRNAME/.." && pwd)
+  REPO_ROOT=$(cd "$BATS_TEST_DIRNAME/../.." && pwd)
 }
 
 assert_published_images() {

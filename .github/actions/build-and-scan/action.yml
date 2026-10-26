@@ -113,11 +113,18 @@ runs:
       shell: bash
       env:
         APP_IMAGE: scan/app:amd64
-      run: bats tests/app-image.bats
+      run: make test-app-image
 
     - name: Runtime acceptance app image (linux/arm64)
       if: inputs.component == 'app'
       shell: bash
       env:
         APP_IMAGE: scan/app:arm64
-      run: bats tests/app-image.bats
+      run: make test-app-image
+
+    - name: Runtime acceptance web image (linux/amd64)
+      if: inputs.component == 'web'
+      shell: bash
+      env:
+        WEB_IMAGE: scan/web:amd64
+      run: make test-web-image

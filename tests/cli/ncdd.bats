@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 setup() {
-  REPO_ROOT=$(cd "$BATS_TEST_DIRNAME/.." && pwd)
+  REPO_ROOT=$(cd "$BATS_TEST_DIRNAME/../.." && pwd)
   TMP_ROOT=$(mktemp -d)
   mkdir -p "$TMP_ROOT/bin"
   export NCDD_TEST_LOG="$TMP_ROOT/docker.log"

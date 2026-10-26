@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 setup() {
-  cd "$BATS_TEST_DIRNAME/.."
+  cd "$BATS_TEST_DIRNAME/../.."
 }
 
 check_pins() {

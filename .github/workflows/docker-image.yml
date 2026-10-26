@@ -41,9 +41,6 @@ jobs:
       - name: Run offline regression tests
         run: make test-ci-scripts
 
-      - name: Test Trivy wrapper
-        run: bash tests/test-scan-images.sh
-
       - name: ShellCheck image publication scripts
         run: |
           shellcheck scripts/nextcloud-versions.sh scripts/publish-images.sh \
@@ -141,11 +138,6 @@ jobs:
         uses: ./.github/actions/build-and-scan
         with:
           component: web
-
-      - name: Test automatic PHP-FPM DNS recovery
-        run: bats tests/nginx-dns-recovery.bats
-        env:
-          WEB_IMAGE: scan/web:amd64
 
       - name: Upload amd64 security findings
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

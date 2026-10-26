@@ -5,7 +5,7 @@ on:
     paths:
       - 'bin/ncdd'
       - 'lib/ncdd-test.sh'
-      - 'tests/ncdd.bats'
+      - 'tests/cli/**'
       - 'docs/ncdd.md'
       - 'AGENTS.md'
       - 'Makefile'
@@ -20,7 +20,7 @@ on:
     paths:
       - 'bin/ncdd'
       - 'lib/ncdd-test.sh'
-      - 'tests/ncdd.bats'
+      - 'tests/cli/**'
       - 'docs/ncdd.md'
       - 'AGENTS.md'
       - 'Makefile'
@@ -48,4 +48,4 @@ jobs:
         run: shellcheck -x -P SCRIPTDIR bin/ncdd lib/ncdd-test.sh
 
       - name: Test
-        run: bats tests/ncdd.bats
+        run: make test-ncdd

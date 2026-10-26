@@ -4,7 +4,7 @@ APP_TEST_IMAGE ?= nextcloud-app:acceptance
 # Maintainer builds use the latest reviewed upstream base, not the deployment image channel.
 APP_BASE_IMAGE ?= $(shell jq -er '.versions[-1].image' .github/nextcloud-supported.json)
 
-.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test-scan-images test-ci-scripts test-development-image-scripts test-ncdd test-app-image test-current-app-image scan-images
+.PHONY: up-garages3 down-garages3 bootstrap-garages3 garage-status-garages3 start-garages3 wait-nextcloud-garages3 setup-garages3 test-scan-images test-ci-scripts test-development-image-scripts test-ncdd test-app-image test-web-image test-current-app-image scan-images
 
 up-garages3:
 	$(COMPOSE) -f $(GARAGES3_COMPOSE_FILE) up -d garage
@@ -30,23 +30,26 @@ setup-garages3:
 	$(MAKE) wait-nextcloud-garages3
 
 test-scan-images:
-	bash tests/test-scan-images.sh
+	bats tests/ci/scan-images.bats
 
+# Each Bats suite auto-discovers tests from its category directory.
+# New tests do not require any Makefile or CI workflow changes.
 test-ci-scripts:
-	bats tests/check-action-pins.bats \
-		tests/compose-images.bats \
-		tests/nextcloud-versions.bats \
-		tests/publish-images.bats
+	bats tests/ci/*.bats
 
 test-development-image-scripts:
-	bats tests/nextcloud-development-image.bats
+	bats tests/development/*.bats
 
 test-ncdd:
-	bats tests/ncdd.bats
+	bats tests/cli/*.bats
 
 test-app-image:
 	@test -n "$(APP_IMAGE)" || { echo 'Usage: make test-app-image APP_IMAGE=<local-image>' >&2; exit 2; }
-	APP_IMAGE="$(APP_IMAGE)" bats tests/app-image.bats
+	APP_IMAGE="$(APP_IMAGE)" bats tests/app/*.bats
+
+test-web-image:
+	@test -n "$(WEB_IMAGE)" || { echo 'Usage: make test-web-image WEB_IMAGE=<local-image>' >&2; exit 2; }
+	WEB_IMAGE="$(WEB_IMAGE)" bats tests/web/*.bats
 
 test-current-app-image:
 	@set -e; \

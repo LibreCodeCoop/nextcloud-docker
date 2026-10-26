@@ -13,12 +13,20 @@ setup() {
   mkdir -p "$workdir/htdocs" "$workdir/includes"
   chmod 755 "$workdir"
   printf '%s\n' "<?php echo 'healthy';" > "$workdir/htdocs/status.php"
-  docker network create "$network" >/dev/null
+
+  # Docker only permits --ip on networks with a user-configured subnet.
+  # Let Docker select an available subnet instead of hardcoding an address.
+  allocator="$network-allocator"
+  docker network create "$allocator" >/dev/null
+  subnet="$(docker network inspect --format '{{(index .IPAM.Config 0).Subnet}}' "$allocator")"
+  docker network rm "$allocator" >/dev/null
+  docker network create --subnet "$subnet" "$network" >/dev/null
 }
 
 teardown() {
   docker rm -f "$web" "$app" "$holder" >/dev/null 2>&1 || true
   docker network rm "$network" >/dev/null 2>&1 || true
+  docker network rm "$allocator" >/dev/null 2>&1 || true
   if [[ -n "${workdir:-}" ]]; then
     rm -rf "$workdir"
   fi

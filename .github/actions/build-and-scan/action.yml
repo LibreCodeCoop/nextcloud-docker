@@ -16,7 +16,6 @@ runs:
   using: composite
   steps:
     - name: Setup Bats
-      if: inputs.component == 'app'
       uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43 # 4.0.0
       with:
         support-install: false

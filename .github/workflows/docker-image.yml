@@ -143,7 +143,7 @@ jobs:
           component: web
 
       - name: Test automatic PHP-FPM DNS recovery
-        run: bash tests/nginx-dns-recovery.sh
+        run: bats tests/nginx-dns-recovery.bats
         env:
           WEB_IMAGE: scan/web:amd64
 

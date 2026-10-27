@@ -6,27 +6,27 @@ on:
       - main
     paths:
       - '.docker/app/**'
-      - 'tests/app-image.bats'
+      - 'tests/app/**'
       - 'scripts/scan-images.sh'
       - 'trivy.yaml'
       - '.github/workflows/nextcloud-development.yml'
       - 'scripts/resolve-nextcloud-upstream.sh'
       - 'scripts/push-master-architecture.sh'
       - 'scripts/publish-master-manifest.sh'
-      - 'tests/nextcloud-development-image.bats'
+      - 'tests/development/**'
   push:
     branches:
       - main
     paths:
       - '.docker/app/**'
-      - 'tests/app-image.bats'
+      - 'tests/app/**'
       - 'scripts/scan-images.sh'
       - 'trivy.yaml'
       - '.github/workflows/nextcloud-development.yml'
       - 'scripts/resolve-nextcloud-upstream.sh'
       - 'scripts/push-master-architecture.sh'
       - 'scripts/publish-master-manifest.sh'
-      - 'tests/nextcloud-development-image.bats'
+      - 'tests/development/**'
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
@@ -63,7 +63,7 @@ jobs:
           file-install: false
 
       - name: Test development image scripts
-        run: bats tests/nextcloud-development-image.bats
+        run: make test-development-image-scripts
 
   validate:
     needs:
@@ -150,7 +150,7 @@ jobs:
         shell: bash
         env:
           APP_IMAGE: scan/master:${{ matrix.arch }}
-        run: bats tests/app-image.bats
+        run: make test-app-image
 
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'

@@ -74,14 +74,22 @@ The repository uses Bash, AWK, `jq`, and Bats rather than a separate Python impl
 ```bash
 make test-ci-scripts
 make test-development-image-scripts
-bash tests/test-scan-images.sh
+make test-ncdd
+make test-scan-images
 make test-app-image APP_IMAGE=scan/app:amd64
+make test-web-image WEB_IMAGE=scan/web:amd64
 make test-current-app-image
 ```
 
 The wiki parser regression tests include real historical snapshots from 2023 to 2026, a malformed revision, overlapping EOL entries, and a release listed before publication. Publication tests simulate Docker calls so they do not push to the registry.
 
 The runtime acceptance test uses an isolated Docker network and PostgreSQL container, verifies Nextcloud installation and `occ` status, and checks the PHP-FPM interface. Test-created resources are cleaned up. CI must run these tests against the images actually built by the workflow.
+
+The Trivy wrapper tests are part of the offline CI suite. Bats tests are grouped into `tests/ci/` (offline checks), `tests/development/`,
+`tests/cli/`, `tests/app/`, and `tests/web/`. The Makefile discovers every
+`*.bats` file in the corresponding directory. Add tests there without changing
+GitHub Actions or maintaining a file list. The app and web suites require
+locally built images passed through `APP_IMAGE` and `WEB_IMAGE`.
 
 For YAML syntax, Shell scripts, and publication changes, use `actionlint`, `ShellCheck`, and the Bats suite before requesting review. Do not weaken vulnerability gates to pass CI.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Offline regression tests for the official wiki and reviewed JSON format.
 setup() {
-  cd "$BATS_TEST_DIRNAME/.."
+  cd "$BATS_TEST_DIRNAME/../.."
   TEST_ROOT=$(mktemp -d)
   export TEST_ROOT
   mkdir -p "$TEST_ROOT/bin"

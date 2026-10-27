@@ -16,7 +16,6 @@ runs:
   using: composite
   steps:
     - name: Setup Bats
-      if: inputs.component == 'app'
       uses: bats-core/bats-action@77d6fb60505b4d0d1d73e48bd035b55074bbfb43 # 4.0.0
       with:
         support-install: false
@@ -32,6 +31,8 @@ runs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
+    # Refresh OS security updates: invalidate the app runtime stage and
+    # rebuild the small web image so cached apt/apk upgrades cannot go stale.
     - name: Build app image (linux/amd64)
       if: inputs.component == 'app'
       uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
@@ -42,6 +43,7 @@ runs:
         build-args: |
           NEXTCLOUD_BASE_IMAGE=${{ inputs.nextcloud_base_image }}
         tags: scan/app:amd64
+        no-cache-filters: runtime
         cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-amd64
         cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-amd64
 
@@ -55,6 +57,7 @@ runs:
         build-args: |
           NEXTCLOUD_BASE_IMAGE=${{ inputs.nextcloud_base_image }}
         tags: scan/app:arm64
+        no-cache-filters: runtime
         cache-from: type=gha,scope=app-${{ inputs.nextcloud_version }}-arm64
         cache-to: type=gha,mode=max,scope=app-${{ inputs.nextcloud_version }}-arm64
 
@@ -66,6 +69,7 @@ runs:
         platforms: linux/amd64
         load: true
         tags: scan/web:amd64
+        no-cache: true
         cache-from: type=gha,scope=web-amd64
         cache-to: type=gha,mode=max,scope=web-amd64
 
@@ -77,6 +81,7 @@ runs:
         platforms: linux/arm64
         load: true
         tags: scan/web:arm64
+        no-cache: true
         cache-from: type=gha,scope=web-arm64
         cache-to: type=gha,mode=max,scope=web-arm64
 
@@ -108,11 +113,18 @@ runs:
       shell: bash
       env:
         APP_IMAGE: scan/app:amd64
-      run: bats tests/app-image.bats
+      run: make test-app-image
 
     - name: Runtime acceptance app image (linux/arm64)
       if: inputs.component == 'app'
       shell: bash
       env:
         APP_IMAGE: scan/app:arm64
-      run: bats tests/app-image.bats
+      run: make test-app-image
+
+    - name: Runtime acceptance web image (linux/amd64)
+      if: inputs.component == 'web'
+      shell: bash
+      env:
+        WEB_IMAGE: scan/web:amd64
+      run: make test-web-image

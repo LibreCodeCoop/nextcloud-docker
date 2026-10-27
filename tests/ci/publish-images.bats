@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Docker is mocked; these tests never push real images to a registry.
 setup() {
-  cd "$BATS_TEST_DIRNAME/.."
+  cd "$BATS_TEST_DIRNAME/../.."
   TEST_ROOT=$(mktemp -d)
   export TEST_ROOT
   mkdir -p "$TEST_ROOT/bin"

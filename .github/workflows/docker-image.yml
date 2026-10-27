@@ -41,9 +41,6 @@ jobs:
       - name: Run offline regression tests
         run: make test-ci-scripts
 
-      - name: Test Trivy wrapper
-        run: bash tests/test-scan-images.sh
-
       - name: ShellCheck image publication scripts
         run: |
           shellcheck scripts/nextcloud-versions.sh scripts/publish-images.sh \

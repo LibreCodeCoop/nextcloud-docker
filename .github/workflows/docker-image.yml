@@ -89,14 +89,14 @@ jobs:
 
       - name: Upload amd64 security findings
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3.39.1
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: trivy-results/app-linux-amd64.sarif
           category: trivy-app-linux-amd64-${{ matrix.tag }}
 
       - name: Upload arm64 security findings
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3.39.1
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: trivy-results/app-linux-arm64.sarif
           category: trivy-app-linux-arm64-${{ matrix.tag }}
@@ -141,14 +141,14 @@ jobs:
 
       - name: Upload amd64 security findings
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3.39.1
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: trivy-results/web-linux-amd64.sarif
           category: trivy-web-linux-amd64
 
       - name: Upload arm64 security findings
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@4bfa242aa49c5f7c6770b98670d354a7dfac05f8 # v3.39.1
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: trivy-results/web-linux-arm64.sarif
           category: trivy-web-linux-arm64

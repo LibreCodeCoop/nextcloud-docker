@@ -1,7 +1,7 @@
 ARG NEXTCLOUD_BASE_IMAGE=nextcloud:stable-fpm
 ARG NEXTCLOUD_SOURCE=release
 
-FROM mlocati/php-extension-installer:2.12.1 AS php-extension-installer
+FROM mlocati/php-extension-installer:2.12.3 AS php-extension-installer
 
 FROM ${NEXTCLOUD_BASE_IMAGE} AS release
 

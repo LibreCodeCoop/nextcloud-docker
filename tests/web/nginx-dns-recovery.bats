@@ -13,6 +13,10 @@ setup() {
   mkdir -p "$workdir/htdocs" "$workdir/includes"
   chmod 755 "$workdir"
   printf '%s\n' "<?php echo 'healthy';" > "$workdir/htdocs/status.php"
+  for file in composer.json composer.lock package.json package-lock.json core/shipped.json; do
+    mkdir -p "$workdir/htdocs/$(dirname "$file")"
+    printf '%s\n' '{"fixture":true}' > "$workdir/htdocs/$file"
+  done
 
   # Docker only permits --ip on networks with a user-configured subnet.
   # Let Docker select an available subnet instead of hardcoding an address.
@@ -84,4 +88,23 @@ assert_healthy() {
     echo "nginx container unexpectedly restarted" >&2
     return 1
   }
+}
+
+@test "nginx denies direct access to dependency and shipped metadata" {
+  start_app
+  docker run -d --name "$web" --network "$network" \
+    --volume "$workdir/htdocs:/var/www/html:ro" \
+    --volume "$workdir/includes:/etc/nginx/conf.d/includes:ro" \
+    "$WEB_IMAGE" >/dev/null
+
+  assert_healthy
+  for file in composer.json composer.lock package.json package-lock.json core/shipped.json; do
+    run docker exec "$web" wget -S -O /dev/null "http://127.0.0.1/$file"
+    [ "$status" -ne 0 ] || { echo "$file was served" >&2; return 1; }
+    [[ "$output" == *"404 Not Found"* ]] || { echo "$file: $output" >&2; return 1; }
+  done
+
+  run docker exec "$web" nginx -t
+  [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+  [[ "$output" != *"duplicate extension"* ]] || { echo "$output" >&2; return 1; }
 }

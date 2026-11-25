@@ -52,8 +52,7 @@ teardown() {
   [ "$status" -eq 0 ]
   [ "$(grep -c '^buildx imagetools create ' "$DOCKER_COMMAND_LOG")" -eq 10 ]
   grep -Fx "buildx imagetools create --tag ${APP_IMAGE}:33-fpm ${APP_IMAGE}:sha-${SHA}-33-fpm-amd64 ${APP_IMAGE}:sha-${SHA}-33-fpm-arm64" "$DOCKER_COMMAND_LOG"
-  grep -Fx "buildx imagetools create --tag ${APP_IMAGE}:35.0.2-fpm ${APP_IMAGE}:sha-${SHA}-35-fpm-amd64 ${APP_IMAGE}:sha-${SHA}-35-fpm-arm64" "$DOCKER_COMMAND_LOG"
-  grep -Fx "buildx imagetools create --tag ${APP_IMAGE}:latest ${APP_IMAGE}:sha-${SHA}-35-fpm-amd64 ${APP_IMAGE}:sha-${SHA}-35-fpm-arm64" "$DOCKER_COMMAND_LOG"
+  grep -Fx "buildx imagetools create --tag ${APP_IMAGE}:35.0.3-fpm ${APP_IMAGE}:sha-${SHA}-35-fpm-amd64 ${APP_IMAGE}:sha-${SHA}-35-fpm-arm64" "$DOCKER_COMMAND_LOG"  grep -Fx "buildx imagetools create --tag ${APP_IMAGE}:latest ${APP_IMAGE}:sha-${SHA}-35-fpm-amd64 ${APP_IMAGE}:sha-${SHA}-35-fpm-arm64" "$DOCKER_COMMAND_LOG"
   grep -Fx "buildx imagetools create --tag ${WEB_IMAGE}:main ${WEB_IMAGE}:sha-${SHA}-web-amd64 ${WEB_IMAGE}:sha-${SHA}-web-arm64" "$DOCKER_COMMAND_LOG"
   grep -Fx "buildx imagetools create --tag ${WEB_IMAGE}:latest ${WEB_IMAGE}:sha-${SHA}-web-amd64 ${WEB_IMAGE}:sha-${SHA}-web-arm64" "$DOCKER_COMMAND_LOG"
 }
